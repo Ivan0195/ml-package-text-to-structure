@@ -6,6 +6,7 @@ enum LlamaError: Error {
     case couldNotInitializeContext
 }
 
+@available(iOS 13.0.0, *)
 actor LlamaContext {
     private var model: OpaquePointer
     private var context: OpaquePointer
@@ -35,7 +36,6 @@ actor LlamaContext {
     
     private static var ctx_params: llama_context_params {
         let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
-        print("Using \(n_threads) threads")
         var ctx_params = llama_context_default_params()
         ctx_params.seed = 1
         ctx_params.n_ctx = 8192
@@ -79,7 +79,6 @@ actor LlamaContext {
         llama_batch_clear(&batch)
         for i1 in 0..<tokens_list.count {
             let i = Int(i1)
-            print(batch)
             llama_batch_add(&batch, tokens_list[i], Int32(i), [0], false)
         }
         batch.logits[Int(batch.n_tokens) - 1] = 1 // true
@@ -130,7 +129,6 @@ actor LlamaContext {
             temporary_invalid_cchars.removeAll()
             return CompletionStatus(piece: new_token_str, state: .eos)
         } else if n_cur >= n_len || empty_strings >= 5 {
-            print("\n")
             let new_token_str = String(cString: temporary_invalid_cchars + [0])
             temporary_invalid_cchars.removeAll()
             return CompletionStatus(piece: new_token_str, state: .maxlength)
@@ -150,20 +148,14 @@ actor LlamaContext {
             new_token_str = ""
         }
         if new_token_str == "" {
-            print("empty: \(empty_strings)")
             empty_strings = empty_strings + 1
         }
         if new_token_str == "<|endoftext|>" {
-            print("empty: \(empty_strings)")
             empty_strings = 5
         }
-        print("n_cur: \(n_cur)", new_token_str)
-        
         llama_batch_clear(&batch)
         llama_batch_add(&batch, new_token_id, n_cur, [0], true)
-        
         n_decode += 1
-        
         n_cur += 1
         
         if llama_decode(context, batch) != 0 {
@@ -207,7 +199,6 @@ actor LlamaContext {
         }
         
         tokens.deallocate()
-        print(swiftTokens)
         return swiftTokens
     }
     

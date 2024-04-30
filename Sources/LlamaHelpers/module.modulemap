@@ -1,6 +1,7 @@
 
-module LlamaHelpers {
-    header "grammar-parser.h"
+framework module LlamaHelpers {
+    umbrella header "./grammar-parser.h"
     requires cplusplus11
     export *
+    module * { export * }
 }

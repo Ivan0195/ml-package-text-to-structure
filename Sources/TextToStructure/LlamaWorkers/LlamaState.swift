@@ -67,7 +67,6 @@ class LlamaState: ObservableObject {
             await llamaContext.clear()
             self.isGenerating = false
         }
-        print("Done")
         return result
     }
 }

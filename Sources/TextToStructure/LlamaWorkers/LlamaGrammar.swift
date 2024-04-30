@@ -2,7 +2,8 @@ import Foundation
 import llama
 import LlamaHelpers
 
-public final class LlamaGrammar {
+
+final class LlamaGrammar {
     static var steps: LlamaGrammar? {
         Self(#"""
     root ::= Template
@@ -21,7 +22,6 @@ public final class LlamaGrammar {
     var grammar: OpaquePointer
 
     init?(_ grammar: String) {
-        print(grammar)
         self.grammar = grammar_parser.llama_grammar_init_from_content(grammar.cString(using: .utf8))
     }
 

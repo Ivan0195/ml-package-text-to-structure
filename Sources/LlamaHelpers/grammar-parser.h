@@ -1,9 +1,10 @@
+#ifdef __cplusplus
 #pragma once
 #include "llama.h"
-#include <vector>
-#include <map>
 #include <cstdint>
 #include <string>
+#include <map>
+#include <vector>
 
 namespace grammar_parser {
     struct parse_state {
@@ -17,3 +18,5 @@ namespace grammar_parser {
     void print_grammar(FILE * file, const parse_state & state);
     llama_grammar * llama_grammar_init_from_content(const char * src);
 }
+
+#endif
