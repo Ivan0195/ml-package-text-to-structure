@@ -11,7 +11,6 @@ let package = Package(
         .watchOS(.v8)
     ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "TextToStructure",
             targets: ["TextToStructure", "LlamaHelpers"]),
@@ -20,11 +19,8 @@ let package = Package(
         .package(url: "https://github.com/ggerganov/llama.cpp.git", revision: "b8109bc0139f15a5b321909f47510b89dca47ffc"),
         ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "LlamaHelpers", dependencies: [.product(name: "llama", package: "llama.cpp")], path: "Sources/LlamaHelpers", cSettings: [
-            ]
+            name: "LlamaHelpers", dependencies: [.product(name: "llama", package: "llama.cpp")], path: "Sources/LlamaHelpers"
         ),
         .target(
             name: "TextToStructure", dependencies: [.product(name: "llama", package: "llama.cpp"), "LlamaHelpers"], path: "Sources/TextToStructure", swiftSettings: [.interoperabilityMode(.Cxx)]),

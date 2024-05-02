@@ -1,11 +1,12 @@
 import Foundation
 
 @available(iOS 13.0.0, *)
-public struct TextToStructure {
+public class TextToStructure {
     private var systemPrompt: String
     private var grammar: String
     private var modelPath: String
     private var llamaState: LlamaState
+    private var generationTask: Task<String, any Error>? = nil
     
    public init(grammar: String, modelPath: String, systemPrompt: String) async {
         self.grammar = grammar
@@ -15,12 +16,24 @@ public struct TextToStructure {
     }
     
     public func generate (prompt: String) async throws -> String {
-        var grammarString: String = self.grammar
-        if self.grammar.contains("containers/Bundle/Application") {
-            let url = URL(filePath: self.grammar)
-            grammarString = try! String(contentsOf: url, encoding: .utf8)
+        do {
+            self.generationTask = Task {
+                var grammarString: String = self.grammar
+                if self.grammar.contains("containers/Bundle/Application") {
+                    let url = URL(filePath: self.grammar)
+                    grammarString = try! String(contentsOf: url, encoding: .utf8)
+                }
+                let result = try! await llamaState.generateWithGrammar(prompt: "\(prompt)", grammar: LlamaGrammar(grammarString)!)
+                return result
+            }
+            return try! await self.generationTask!.value
+        } catch {
+            print("generation stopped")
         }
-        let result = try! await llamaState.generateWithGrammar(prompt: "\(systemPrompt) from this text: \(prompt)", grammar: LlamaGrammar(grammarString)!)
-        return result
+    }
+    
+    private func stopGeneration () async {
+        self.generationTask?.cancel()
+        await llamaState.llamaContext?.forceStop()
     }
 }

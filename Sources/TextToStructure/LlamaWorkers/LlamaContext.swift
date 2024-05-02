@@ -34,6 +34,14 @@ actor LlamaContext {
         llama_backend_free()
     }
     
+    public func forceStop() {
+        //llama_batch_free(batch)
+        //self.clear()
+        llama_free(context)
+        //llama_free_model(model)
+        //llama_backend_free()
+    }
+    
     private static var ctx_params: llama_context_params {
         let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
         var ctx_params = llama_context_default_params()
@@ -48,7 +56,12 @@ actor LlamaContext {
     
     static func createContext(path: String) throws -> LlamaContext {
         llama_backend_init()
-        let model_params = llama_model_default_params()
+        var model_params = llama_model_default_params()
+        let device = MTLCreateSystemDefaultDevice()
+        let isSupportMetal3 = device?.supportsFamily(.metal3) ?? false
+        if !isSupportMetal3 {
+            model_params.n_gpu_layers = 0
+        }
         let model = llama_load_model_from_file(path, model_params)
         guard let model else {
             print("Could not load model at \(path)")
@@ -100,7 +113,7 @@ actor LlamaContext {
         }
     }
     
-   
+    
     func completion_loop_with_grammar(grammar: LlamaGrammar) -> CompletionStatus {
         var new_token_id: llama_token = 0
         
