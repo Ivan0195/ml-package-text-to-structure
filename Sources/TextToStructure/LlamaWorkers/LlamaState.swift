@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 #if os(iOS)
 import class UIKit.UIDevice
 #endif
@@ -13,27 +14,15 @@ enum GenerationError: Error {
 class LlamaState: ObservableObject {
     
     @Published var isGenerating = false
-    
     private var generationTask: Task<Void, any Error>?
-    
-    private var generatingMessage: String = ""
     public var llamaContext: LlamaContext?
     private var modelUrl: String
-    init(modelUrl: String) {
+    init(modelUrl: String, streamResult: Binding<String>? = nil) {
         self.modelUrl = modelUrl
         do {
-            self.llamaContext = try LlamaContext.createContext(path: modelUrl)
+            self.llamaContext = try LlamaContext.createContext(path: modelUrl, stream: streamResult)
         } catch {
             print(error)
-        }
-    }
-    
-    @MainActor
-    func refreshContext() {
-        self.isGenerating = false
-        self.generatingMessage = ""
-        Task {
-            try await self.llamaContext?.reset_context()
         }
     }
     

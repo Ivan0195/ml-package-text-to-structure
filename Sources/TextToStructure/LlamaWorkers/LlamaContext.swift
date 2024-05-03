@@ -1,5 +1,6 @@
 import llama
 import Foundation
+import SwiftUI
 import UIKit
 
 enum LlamaError: Error {
@@ -7,24 +8,27 @@ enum LlamaError: Error {
 }
 
 @available(iOS 13.0.0, *)
+
 actor LlamaContext {
     private var model: OpaquePointer
     private var context: OpaquePointer
     private var batch: llama_batch
     private var tokens_list: [llama_token]
     private var temporary_invalid_cchars: [CChar]
+    @Binding var stream: String
     
     var n_len: Int32 = 8192
     var n_cur: Int32 = 0
     var n_decode: Int32 = 0
     var empty_strings: Int32 = 0
     
-    init(model: OpaquePointer, context: OpaquePointer) {
+    init(model: OpaquePointer, context: OpaquePointer, stream: Binding<String>? = nil) {
         self.model = model
         self.context = context
         self.tokens_list = []
         self.batch = llama_batch_init(8192, 0, 1)
         self.temporary_invalid_cchars = []
+        self._stream = stream ?? Binding.constant("")
     }
     
     deinit {
@@ -32,14 +36,6 @@ actor LlamaContext {
         llama_free(context)
         llama_free_model(model)
         llama_backend_free()
-    }
-    
-    public func forceStop() {
-        //llama_batch_free(batch)
-        //self.clear()
-        llama_free(context)
-        //llama_free_model(model)
-        //llama_backend_free()
     }
     
     private static var ctx_params: llama_context_params {
@@ -54,8 +50,7 @@ actor LlamaContext {
         return ctx_params
     }
     
-    static func createContext(path: String) throws -> LlamaContext {
-        llama_backend_init()
+    static func createContext(path: String, stream: Binding<String>? = nil) throws -> LlamaContext {
         var model_params = llama_model_default_params()
         let device = MTLCreateSystemDefaultDevice()
         let isSupportMetal3 = device?.supportsFamily(.metal3) ?? false
@@ -73,7 +68,7 @@ actor LlamaContext {
             print("Could not load context!")
             throw LlamaError.couldNotInitializeContext
         }
-        return LlamaContext(model: model, context: context)
+        return LlamaContext(model: model, context: context, stream: stream)
     }
     
     func reset_context() throws {
@@ -101,6 +96,9 @@ actor LlamaContext {
         }
         
         n_cur = batch.n_tokens
+        if stream != "" {
+            stream = ""
+        }
     }
     
     struct CompletionStatus: Sendable, Equatable, Hashable {
@@ -170,7 +168,7 @@ actor LlamaContext {
         llama_batch_add(&batch, new_token_id, n_cur, [0], true)
         n_decode += 1
         n_cur += 1
-        
+            stream += new_token_str
         if llama_decode(context, batch) != 0 {
             print("failed to evaluate llama!")
         }
