@@ -1,25 +1,49 @@
 import Foundation
 import llama
 import SwiftUI
+import LlamaHelpers
+import Combine
 
 @available(iOS 13.0.0, *)
-@MainActor
+
 public class TextToStructure {
     private var systemPrompt: String
     private var grammar: String
     private var modelPath: String
     private var llamaState: LlamaState
     private var generationTask: Task<String, any Error>? = nil
+    private var observer: NSObjectProtocol? = nil
     @MainActor
-    public init(grammar: String, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil) async {
+    public init(grammar: String, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil) async throws {
+        print("init text to structure")
         self.grammar = grammar
         self.modelPath = modelPath
         self.systemPrompt = systemPrompt
         if streamResult == nil {
-            self.llamaState = LlamaState(modelUrl: modelPath)
+            do {
+                self.llamaState = try LlamaState(modelUrl: modelPath)
+            } catch {
+                throw error
+            }
         } else {
-            self.llamaState = LlamaState(modelUrl: modelPath, streamResult: streamResult)
+            do {
+                self.llamaState = try LlamaState(modelUrl: modelPath, streamResult: streamResult)
+            } catch {
+                throw error
+            }
         }
+        if observer == nil {
+            observer = NotificationCenter.default.addObserver(forName:     UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: OperationQueue.main, using: {
+                [weak self] notification in
+                self?.stop()
+                print("Out of memory")
+            })
+        }
+    }
+    
+    deinit {
+        print("deinit TextToStructure instance")
+        NotificationCenter.default.removeObserver(observer)
     }
     
     public func generate (prompt: String) async throws -> String {
@@ -34,9 +58,14 @@ public class TextToStructure {
                 return result
             }
             return try await self.generationTask!.value
-        } catch {
-            print("generation stopped")
-            return ""
+        } catch  {
+            throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one mre time")
         }
+    }
+    
+    public func stop () {
+        self.generationTask?.cancel()
+        Task { await self.llamaState.llamaContext?.forceStop() }
+        NotificationCenter.default.removeObserver(observer)
     }
 }

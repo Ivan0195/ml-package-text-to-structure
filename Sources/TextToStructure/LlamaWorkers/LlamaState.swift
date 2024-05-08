@@ -13,26 +13,26 @@ enum GenerationError: Error {
 @MainActor
 class LlamaState: ObservableObject {
     
-    @Published var isGenerating = false
     private var generationTask: Task<Void, any Error>?
     public var llamaContext: LlamaContext?
     private var modelUrl: String
-    init(modelUrl: String, streamResult: Binding<String>? = nil) {
+    init(modelUrl: String, streamResult: Binding<String>? = nil) throws {
         self.modelUrl = modelUrl
         do {
             self.llamaContext = try LlamaContext.createContext(path: modelUrl, stream: streamResult)
         } catch {
-            print(error)
+            throw LlamaError.invalidModelUrl
         }
     }
     
     func generateWithGrammar(prompt: String, grammar: LlamaGrammar) async throws -> String {
+        if prompt.count == 0 {
+            throw LlamaError.emptyPrompt
+        }
         guard let llamaContext else {
             throw GenerationError.noLlamaContext
         }
-        self.isGenerating = true
         await llamaContext.completion_init(text: prompt)
-        print("initialized")
         var result = ""
         while !Task.isCancelled {
             let completion = await llamaContext.completion_loop_with_grammar(grammar: grammar)
@@ -46,7 +46,6 @@ class LlamaState: ObservableObject {
         }
         if !Task.isCancelled {
             await llamaContext.clear()
-            self.isGenerating = false
         }
         return result
     }

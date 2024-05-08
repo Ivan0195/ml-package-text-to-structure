@@ -5,6 +5,10 @@ import UIKit
 
 enum LlamaError: Error {
     case couldNotInitializeContext
+    case invalidModelUrl
+    case invalidJSONScheme
+    case emptyPrompt
+    case error(title: String?, message: String?)
 }
 
 @available(iOS 13.0.0, *)
@@ -15,6 +19,7 @@ actor LlamaContext {
     private var batch: llama_batch
     private var tokens_list: [llama_token]
     private var temporary_invalid_cchars: [CChar]
+    private var isItForceStop: Bool = false
     @Binding var stream: String
     
     var n_len: Int32 = 8192
@@ -33,9 +38,20 @@ actor LlamaContext {
     
     deinit {
         llama_batch_free(batch)
-        llama_free(context)
-        llama_free_model(model)
+        if !isItForceStop {
+            print("here")
+            llama_free(context)
+            llama_free_model(model)
+        }
         llama_backend_free()
+        self.isItForceStop = false
+    }
+    
+    public func forceStop() {
+        self.isItForceStop = true
+        print("stop")
+        llama_free(self.context)
+        llama_free_model(self.model)
     }
     
     private static var ctx_params: llama_context_params {
@@ -81,24 +97,28 @@ actor LlamaContext {
         self.context = context
     }
     
-    func completion_init(text: String) {
+    func completion_init(text: String) async {
         tokens_list = tokenize(text: text, add_bos: true)
         temporary_invalid_cchars = []
         llama_batch_clear(&batch)
-        for i1 in 0..<tokens_list.count {
+        
+        for i1 in 0..<tokens_list.count where !isItForceStop {
             let i = Int(i1)
             llama_batch_add(&batch, tokens_list[i], Int32(i), [0], false)
         }
+        
         batch.logits[Int(batch.n_tokens) - 1] = 1 // true
         
-        if llama_decode(context, batch) != 0 {
+        if !Task.isCancelled && llama_decode(context, batch) != 0 {
             print("llama_decode() failed")
         }
-        
+        if Task.isCancelled {return}
+        print("llama decoded")
         n_cur = batch.n_tokens
         if stream != "" {
             stream = ""
         }
+        print("finished func decoder")
     }
     
     struct CompletionStatus: Sendable, Equatable, Hashable {
@@ -168,7 +188,7 @@ actor LlamaContext {
         llama_batch_add(&batch, new_token_id, n_cur, [0], true)
         n_decode += 1
         n_cur += 1
-            stream += new_token_str
+        stream += new_token_str
         if llama_decode(context, batch) != 0 {
             print("failed to evaluate llama!")
         }
