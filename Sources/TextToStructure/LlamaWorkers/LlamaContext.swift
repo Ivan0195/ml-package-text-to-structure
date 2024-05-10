@@ -8,6 +8,7 @@ enum LlamaError: Error {
     case invalidModelUrl
     case invalidJSONScheme
     case emptyPrompt
+    case outOfMemory
     case error(title: String?, message: String?)
 }
 
@@ -48,6 +49,9 @@ actor LlamaContext {
     }
     
     public func forceStop() {
+        if self.isItForceStop {
+            return
+        }
         self.isItForceStop = true
         print("stop")
         llama_free(self.context)

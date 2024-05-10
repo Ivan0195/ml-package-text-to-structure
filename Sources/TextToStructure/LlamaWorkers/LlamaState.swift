@@ -26,7 +26,7 @@ class LlamaState: ObservableObject {
     }
     
     func generateWithGrammar(prompt: String, grammar: LlamaGrammar) async throws -> String {
-        if prompt.count == 0 {
+        if prompt.count < 10 {
             throw LlamaError.emptyPrompt
         }
         guard let llamaContext else {
