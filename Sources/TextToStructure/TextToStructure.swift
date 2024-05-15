@@ -13,6 +13,7 @@ public class TextToStructure {
     private var llamaState: LlamaState
     private var generationTask: Task<String, any Error>? = nil
     private var observer: NSObjectProtocol? = nil
+    private var isMemoryOut: Bool = false
     @MainActor
     public init(grammar: String, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil) async throws {
         print("init text to structure")
@@ -35,8 +36,8 @@ public class TextToStructure {
         if observer == nil {
             observer = NotificationCenter.default.addObserver(forName:     UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: OperationQueue.main, using: {
                 [weak self] notification in
-                self?.stop()
-                print("Out of memory")
+                    self?.isMemoryOut = true
+                    self?.stop()
             })
         }
     }
@@ -55,11 +56,14 @@ public class TextToStructure {
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
                 let result = try await llamaState.generateWithGrammar(prompt: "\(prompt)", grammar: LlamaGrammar(grammarString)!)
+                if isMemoryOut {
+                    throw LlamaError.outOfMemory
+                }
                 return result
             }
             return try await self.generationTask!.value
         } catch  {
-            throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one mre time")
+            throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
         }
     }
     
