@@ -33,18 +33,18 @@ public class TextToStructure {
                 throw error
             }
         }
-        if observer == nil {
-            observer = NotificationCenter.default.addObserver(forName:     UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: OperationQueue.main, using: {
-                [weak self] notification in
-                    self?.isMemoryOut = true
-                    self?.stop()
-            })
-        }
+//        if observer == nil {
+//            observer = NotificationCenter.default.addObserver(forName:     UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: OperationQueue.main, using: {
+//                [weak self] notification in
+//                    self?.isMemoryOut = true
+//                    self?.stop()
+//            })
+//        }
     }
     
     deinit {
         print("deinit TextToStructure instance")
-        NotificationCenter.default.removeObserver(observer)
+//        NotificationCenter.default.removeObserver(observer)
     }
     
     public func generate (prompt: String) async throws -> String {
@@ -74,6 +74,6 @@ public class TextToStructure {
     public func stop () {
         self.generationTask?.cancel()
         Task { await self.llamaState.llamaContext?.forceStop() }
-        NotificationCenter.default.removeObserver(observer)
+        //NotificationCenter.default.removeObserver(observer)
     }
 }
