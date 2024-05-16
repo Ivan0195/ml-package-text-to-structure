@@ -63,7 +63,11 @@ public class TextToStructure {
             }
             return try await self.generationTask!.value
         } catch  {
-            throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
+            if isMemoryOut {
+                throw LlamaError.outOfMemory
+            } else {
+                throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
+            }
         }
     }
     

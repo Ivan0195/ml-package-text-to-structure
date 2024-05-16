@@ -3,13 +3,30 @@ import Foundation
 import SwiftUI
 import UIKit
 
-enum LlamaError: Error {
+enum LlamaError: LocalizedError {
     case couldNotInitializeContext
     case invalidModelUrl
     case invalidJSONScheme
     case emptyPrompt
     case outOfMemory
     case error(title: String?, message: String?)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidJSONScheme:
+            return "Invalid JSON Scheme"
+        case .couldNotInitializeContext:
+            return "Context initialization error"
+        case .invalidModelUrl:
+            return "Invalid provided model path"
+        case .emptyPrompt:
+            return "Prompt is empty or too short"
+        case .outOfMemory:
+            return "Process is running out of memory. Try to cancel another processes and try again"
+        case .error(title: let title, message: let message):
+            return message
+        }
+    }
 }
 
 @available(iOS 13.0.0, *)
@@ -53,7 +70,6 @@ actor LlamaContext {
             return
         }
         self.isItForceStop = true
-        print("stop")
         llama_free(self.context)
         llama_free_model(self.model)
     }
@@ -76,6 +92,16 @@ actor LlamaContext {
         let isSupportMetal3 = device?.supportsFamily(.metal3) ?? false
         if !isSupportMetal3 {
             model_params.n_gpu_layers = 0
+        } else {
+            if ProcessInfo().physicalMemory > 7598691840 {
+                if MTLCreateSystemDefaultDevice()!.name.contains("M") {
+                    model_params.n_gpu_layers = 999
+                } else {
+                    model_params.n_gpu_layers = 24
+                }
+            } else {
+                model_params.n_gpu_layers = 20
+            }
         }
         let model = llama_load_model_from_file(path, model_params)
         guard let model else {
@@ -122,7 +148,7 @@ actor LlamaContext {
         if stream != "" {
             stream = ""
         }
-        print("finished func decoder")
+        print("Prompt decoding successful")
     }
     
     struct CompletionStatus: Sendable, Equatable, Hashable {
