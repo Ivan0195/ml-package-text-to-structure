@@ -211,7 +211,7 @@ actor LlamaContext {
         if new_token_str == "" {
             empty_strings = empty_strings + 1
         }
-        if new_token_str == "<|endoftext|>" {
+        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" {
             empty_strings = 5
         }
         llama_batch_clear(&batch)
@@ -266,24 +266,24 @@ actor LlamaContext {
     /// - note: The result does not contain null-terminator
     private func token_to_piece(token: llama_token) -> [CChar] {
         let result = UnsafeMutablePointer<Int8>.allocate(capacity: 8)
-        result.initialize(repeating: Int8(0), count: 8)
-        defer {
-            result.deallocate()
-        }
-        let nTokens = llama_token_to_piece(model, token, result, 8)
-        
-        if nTokens < 0 {
-            let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
-            newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
-            defer {
-                newResult.deallocate()
-            }
-            let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens)
-            let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
-            return Array(bufferPointer)
-        } else {
-            let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
-            return Array(bufferPointer)
-        }
+                result.initialize(repeating: Int8(0), count: 8)
+                defer {
+                    result.deallocate()
+                }
+                let nTokens = llama_token_to_piece(model, token, result, 8, false)
+
+                if nTokens < 0 {
+                    let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
+                    newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
+                    defer {
+                        newResult.deallocate()
+                    }
+                    let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens, false)
+                    let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
+                    return Array(bufferPointer)
+                } else {
+                    let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
+                    return Array(bufferPointer)
+                }
     }
 }
