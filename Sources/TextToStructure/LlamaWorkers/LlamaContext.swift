@@ -236,7 +236,7 @@ actor LlamaContext {
         //стрим названия шагов
         stream = stepsArray.enumerated().reduce("", {acc, str in
             let endSkip = "\""
-            let startSkip = " { \"step_short_description\": \""
+            let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
             let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
             return acc + "Step \(str.offset + 1): " + description + "\n"
         })
