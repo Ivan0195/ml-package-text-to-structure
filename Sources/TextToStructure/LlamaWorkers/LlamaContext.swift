@@ -29,6 +29,18 @@ enum LlamaError: LocalizedError {
     }
 }
 
+extension String {
+
+    func slice(from: String, to: String) -> String? {
+
+        return (range(of: from)?.upperBound).flatMap { substringFrom in
+            (range(of: to, range: substringFrom..<endIndex)?.lowerBound).map { substringTo in
+                String(self[substringFrom..<substringTo])
+            }
+        }
+    }
+}
+
 @available(iOS 13.0.0, *)
 
 actor LlamaContext {
@@ -38,6 +50,7 @@ actor LlamaContext {
     private var tokens_list: [llama_token]
     private var temporary_invalid_cchars: [CChar]
     private var isItForceStop: Bool = false
+    private var modelAnswer: String = ""
     @Binding var stream: String
     
     var n_len: Int32 = 8192
@@ -218,7 +231,19 @@ actor LlamaContext {
         llama_batch_add(&batch, new_token_id, n_cur, [0], true)
         n_decode += 1
         n_cur += 1
-        stream += new_token_str
+        modelAnswer += new_token_str
+        var stepsArray = modelAnswer.components(separatedBy: "},")
+        //стрим названия шагов
+        stream = stepsArray.enumerated().reduce("", {acc, str in
+            let endSkip = "\""
+            let startSkip = " { \"step_name\": \""
+            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
+            return acc + "Step \(str.offset + 1): " + description + "\n"
+        })
+        //счетчик шагов
+        //stream = String(stepsArray.count)
+        // стрим исходного джейсона
+        //stream = modelAnswer
         if llama_decode(context, batch) != 0 {
             print("failed to evaluate llama!")
         }
