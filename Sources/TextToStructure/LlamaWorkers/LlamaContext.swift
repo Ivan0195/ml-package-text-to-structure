@@ -53,7 +53,7 @@ actor LlamaContext {
     private var modelAnswer: String = ""
     @Binding var stream: String
     
-    var n_len: Int32 = 8192
+    var n_len: Int32 = 12288
     var n_cur: Int32 = 0
     var n_decode: Int32 = 0
     var empty_strings: Int32 = 0
@@ -62,7 +62,7 @@ actor LlamaContext {
         self.model = model
         self.context = context
         self.tokens_list = []
-        self.batch = llama_batch_init(8192, 0, 1)
+        self.batch = llama_batch_init(12288, 0, 1)
         self.temporary_invalid_cchars = []
         self._stream = stream ?? Binding.constant("")
     }
@@ -91,8 +91,8 @@ actor LlamaContext {
         let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
         var ctx_params = llama_context_default_params()
         ctx_params.seed = 1
-        ctx_params.n_ctx = 8192
-        ctx_params.n_batch = 8192
+        ctx_params.n_ctx = 12288
+        ctx_params.n_batch = 12288
         ctx_params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_MAX_VALUE
         ctx_params.n_threads       = UInt32(n_threads)
         ctx_params.n_threads_batch = UInt32(n_threads)
