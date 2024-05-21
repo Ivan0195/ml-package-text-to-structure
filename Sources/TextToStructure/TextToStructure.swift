@@ -15,20 +15,20 @@ public class TextToStructure {
     private var observer: NSObjectProtocol? = nil
     private var isMemoryOut: Bool = false
     @MainActor
-    public init(grammar: String, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil) async throws {
+    public init(grammar: String, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil, inputText: String) async throws {
         print("init text to structure")
         self.grammar = grammar
         self.modelPath = modelPath
         self.systemPrompt = systemPrompt
         if streamResult == nil {
             do {
-                self.llamaState = try LlamaState(modelUrl: modelPath)
+                self.llamaState = try LlamaState(modelUrl: modelPath, inputText: inputText)
             } catch {
                 throw error
             }
         } else {
             do {
-                self.llamaState = try LlamaState(modelUrl: modelPath, streamResult: streamResult)
+                self.llamaState = try LlamaState(modelUrl: modelPath, streamResult: streamResult, inputText: inputText)
             } catch {
                 throw error
             }

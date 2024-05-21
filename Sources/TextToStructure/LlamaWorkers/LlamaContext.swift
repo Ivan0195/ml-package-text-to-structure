@@ -10,9 +10,12 @@ enum LlamaError: LocalizedError {
     case emptyPrompt
     case outOfMemory
     case error(title: String?, message: String?)
+    case tooLongText
     
     var errorDescription: String? {
         switch self {
+        case .tooLongText:
+            return "Your text is too long for generation"
         case .invalidJSONScheme:
             return "Invalid JSON Scheme"
         case .couldNotInitializeContext:
@@ -52,19 +55,80 @@ actor LlamaContext {
     private var isItForceStop: Bool = false
     private var modelAnswer: String = ""
     @Binding var stream: String
+    private var contextParams: llama_context_params
     
-    var n_len: Int32 = 8192
+    var n_len: Int32
     var n_cur: Int32 = 0
     var n_decode: Int32 = 0
     var empty_strings: Int32 = 0
     
-    init(model: OpaquePointer, context: OpaquePointer, stream: Binding<String>? = nil) {
-        self.model = model
-        self.context = context
+    init(modelPath: String, stream: Binding<String>? = nil, inputText: String) throws {
         self.tokens_list = []
-        self.batch = llama_batch_init(8192, 0, 1)
         self.temporary_invalid_cchars = []
         self._stream = stream ?? Binding.constant("")
+        
+        var model_params = llama_model_default_params()
+        let device = MTLCreateSystemDefaultDevice()
+        let isSupportMetal3 = device?.supportsFamily(.metal3) ?? false
+        if !isSupportMetal3 {
+            model_params.n_gpu_layers = 0
+        } else {
+            if ProcessInfo().physicalMemory > 7598691840 {
+                if MTLCreateSystemDefaultDevice()!.name.contains("M") {
+                    model_params.n_gpu_layers = 999
+                } else {
+                    model_params.n_gpu_layers = 24
+                }
+            } else {
+                model_params.n_gpu_layers = 20
+            }
+        }
+        let model = llama_load_model_from_file(modelPath, model_params)
+        
+        let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
+        
+        let utf8Count = inputText.utf8.count
+        let n_tokens = utf8Count + 1
+        let tokens = UnsafeMutablePointer<llama_token>.allocate(capacity: n_tokens)
+        let tokenCount = llama_tokenize(model, inputText, Int32(utf8Count), tokens, Int32(n_tokens), true, false)
+        var swiftTokens: [llama_token] = []
+        for i in 0..<tokenCount {
+            swiftTokens.append(tokens[Int(i)])
+        }
+        tokens.deallocate()
+        
+        let maxInputLength = Double(swiftTokens.count) * 1.35 < 2048 ? Double(swiftTokens.count) + 700 : Double(swiftTokens.count) * 1.35
+        
+        guard maxInputLength <= 12288 else {
+            print("Text is too long")
+            throw LlamaError.tooLongText
+        }
+        
+        var ctx_params = llama_context_default_params()
+        ctx_params.seed = 1
+        ctx_params.n_ctx = UInt32(maxInputLength)
+        ctx_params.n_batch = UInt32(maxInputLength)
+        ctx_params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_MAX_VALUE
+        ctx_params.n_threads       = UInt32(n_threads)
+        ctx_params.n_threads_batch = UInt32(n_threads)
+        self.batch = llama_batch_init(Int32(maxInputLength), 0, 1)
+        self.n_len = Int32(maxInputLength)
+        
+        self.contextParams = ctx_params
+        
+        print(ctx_params)
+        
+        guard let model else {
+            print("Could not load model at \(modelPath)")
+            throw LlamaError.couldNotInitializeContext
+        }
+        self.model = model
+        let context = llama_new_context_with_model(model, ctx_params)
+        guard let context else {
+            print("Could not load context!")
+            throw LlamaError.couldNotInitializeContext
+        }
+        self.context = context
     }
     
     deinit {
@@ -87,52 +151,9 @@ actor LlamaContext {
         llama_free_model(self.model)
     }
     
-    private static var ctx_params: llama_context_params {
-        let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
-        var ctx_params = llama_context_default_params()
-        ctx_params.seed = 1
-        ctx_params.n_ctx = 8192
-        ctx_params.n_batch = 8192
-        ctx_params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_MAX_VALUE
-        ctx_params.n_threads       = UInt32(n_threads)
-        ctx_params.n_threads_batch = UInt32(n_threads)
-        return ctx_params
-    }
-    
-    static func createContext(path: String, stream: Binding<String>? = nil) throws -> LlamaContext {
-        var model_params = llama_model_default_params()
-        let device = MTLCreateSystemDefaultDevice()
-        let isSupportMetal3 = device?.supportsFamily(.metal3) ?? false
-        if !isSupportMetal3 {
-            model_params.n_gpu_layers = 0
-        } else {
-            if ProcessInfo().physicalMemory > 7598691840 {
-                if MTLCreateSystemDefaultDevice()!.name.contains("M") {
-                    model_params.n_gpu_layers = 999
-                } else {
-                    model_params.n_gpu_layers = 24
-                }
-            } else {
-                model_params.n_gpu_layers = 20
-            }
-        }
-        let model = llama_load_model_from_file(path, model_params)
-        guard let model else {
-            print("Could not load model at \(path)")
-            throw LlamaError.couldNotInitializeContext
-        }
-        
-        let context = llama_new_context_with_model(model, ctx_params)
-        guard let context else {
-            print("Could not load context!")
-            throw LlamaError.couldNotInitializeContext
-        }
-        return LlamaContext(model: model, context: context, stream: stream)
-    }
-    
     func reset_context() throws {
         llama_free(self.context)
-        let context = llama_new_context_with_model(self.model, Self.ctx_params)
+        let context = llama_new_context_with_model(self.model, self.contextParams)
         guard let context else {
             print("Could not load context!")
             throw LlamaError.couldNotInitializeContext

@@ -16,10 +16,10 @@ class LlamaState: ObservableObject {
     private var generationTask: Task<Void, any Error>?
     public var llamaContext: LlamaContext?
     private var modelUrl: String
-    init(modelUrl: String, streamResult: Binding<String>? = nil) throws {
+    init(modelUrl: String, streamResult: Binding<String>? = nil, inputText: String) throws {
         self.modelUrl = modelUrl
         do {
-            self.llamaContext = try LlamaContext.createContext(path: modelUrl, stream: streamResult)
+            self.llamaContext = try LlamaContext(modelPath: modelUrl, stream: streamResult, inputText: inputText)
         } catch {
             throw LlamaError.invalidModelUrl
         }
