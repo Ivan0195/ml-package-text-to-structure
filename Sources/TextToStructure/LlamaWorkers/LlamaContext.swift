@@ -245,7 +245,7 @@ actor LlamaContext {
         if new_token_str == "" {
             empty_strings = empty_strings + 1
         }
-        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" {
+        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" {
             empty_strings = 5
         }
         llama_batch_clear(&batch)

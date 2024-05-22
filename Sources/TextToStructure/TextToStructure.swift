@@ -55,7 +55,10 @@ public class TextToStructure {
                     let url = URL(filePath: self.grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
-                let result = try await llamaState.generateWithGrammar(prompt: "\(prompt)", grammar: LlamaGrammar(grammarString)!)
+                let result = try await llamaState.generateWithGrammar(prompt: """
+[INST]Create step by step instruction[/INST]
+\(prompt)
+""", grammar: LlamaGrammar(grammarString)!)
                 if isMemoryOut {
                     throw LlamaError.outOfMemory
                 }
