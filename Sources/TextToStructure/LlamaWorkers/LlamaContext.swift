@@ -97,11 +97,13 @@ actor LlamaContext {
         }
         tokens.deallocate()
         
-        let maxInputLength = Double(swiftTokens.count) * 1.35 < 2048 ? Double(swiftTokens.count) + 700 : Double(swiftTokens.count) * 1.35
+        let maxInputLength = Double(swiftTokens.count) < 2048 ? 3072 : Double(swiftTokens.count) * 1.35
         
         guard maxInputLength <= 12288 else {
             print("Text is too long")
+            llama_free_model(model)
             throw LlamaError.tooLongText
+            return
         }
         
         var ctx_params = llama_context_default_params()

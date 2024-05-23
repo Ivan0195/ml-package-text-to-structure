@@ -21,7 +21,7 @@ class LlamaState: ObservableObject {
         do {
             self.llamaContext = try LlamaContext(modelPath: modelUrl, stream: streamResult, inputText: inputText)
         } catch {
-            throw LlamaError.invalidModelUrl
+            throw error
         }
     }
     
