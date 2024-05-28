@@ -55,7 +55,7 @@ actor LlamaContext {
     private var batch: llama_batch
     private var tokens_list: [llama_token]
     private var temporary_invalid_cchars: [CChar]
-    private var isItForceStop: Bool = false
+    public var isItForceStop: Bool = false
     private var modelAnswer: String = ""
     @Binding var stream: String
     private var contextParams: llama_context_params

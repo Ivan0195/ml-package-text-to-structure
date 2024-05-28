@@ -49,7 +49,7 @@ public class TextToStructure {
     
     public func generate (prompt: String) async throws -> String {
         do {
-            self.generationTask = Task {
+            self.generationTask = Task(priority: .background) {
                 var grammarString: String = self.grammar
                 if self.grammar.contains("containers/Bundle/Application") {
                     let url = URL(filePath: self.grammar)
@@ -67,16 +67,20 @@ public class TextToStructure {
                     var generatedJSON = result.data(using: .utf8)!
                     var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
                 } catch {
-                    print("invalid json, regeneration started")
-                    result = try await llamaState.generateWithGrammar(prompt: """
-                        [INST]generate manual[/INST]\(prompt.dropLast())
-                        """, grammar: LlamaGrammar(grammarString)!)
+                    if await !llamaState.llamaContext!.isItForceStop {
+                        print("invalid json, regeneration started")
+                        result = try await llamaState.generateWithGrammar(prompt: """
+                            [INST]generate manual[/INST]\(prompt.dropLast())
+                            """, grammar: LlamaGrammar(grammarString)!)
+                    }
                     do {
                         var generatedJSON = result.data(using: .utf8)!
                         var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
                     } catch {
-                        print("invalid json, regeneration started")
-                        result = try await llamaState.generateWithGrammar(prompt: "\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
+                        if await !llamaState.llamaContext!.isItForceStop {
+                            print("invalid json, regeneration started")
+                            result = try await llamaState.generateWithGrammar(prompt: "\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
+                        }
                     }
                 }
                 
