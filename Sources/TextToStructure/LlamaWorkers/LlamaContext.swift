@@ -11,11 +11,14 @@ enum LlamaError: LocalizedError {
     case outOfMemory
     case error(title: String?, message: String?)
     case tooLongText
+    case tooShortText
     
     var errorDescription: String? {
         switch self {
         case .tooLongText:
             return "Your text is too long for generation"
+        case .tooShortText:
+            return "Your text is too short for generation"
         case .invalidJSONScheme:
             return "Invalid JSON Scheme"
         case .couldNotInitializeContext:
@@ -97,7 +100,14 @@ actor LlamaContext {
         }
         tokens.deallocate()
         
-        let maxInputLength = Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2 : Double(swiftTokens.count) * 1.35
+        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.5 : Double(swiftTokens.count) * 1.35
+        
+        guard swiftTokens.count > 10 else {
+            print("Text is too short")
+            llama_free_model(model)
+            throw LlamaError.tooShortText
+            return
+        }
         
         guard maxInputLength <= 12288 else {
             print("Text is too long")
@@ -117,8 +127,6 @@ actor LlamaContext {
         self.n_len = Int32(maxInputLength)
         
         self.contextParams = ctx_params
-        
-        print(ctx_params)
         
         guard let model else {
             print("Could not load model at \(modelPath)")
@@ -261,7 +269,7 @@ actor LlamaContext {
             let endSkip = "\""
             let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
             let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
-            return acc + "Step \(str.offset + 1): " + description + "\n"
+            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description + "\n"
         })
         //счетчик шагов
         //stream = String(stepsArray.count)

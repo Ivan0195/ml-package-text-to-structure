@@ -6,6 +6,14 @@ import Combine
 
 @available(iOS 13.0.0, *)
 
+public struct StepsJSON: Codable {
+    public var steps: [GeneratedStep]
+}
+public struct GeneratedStep: Codable {
+    public var step_name: String
+    public var step_description: String?
+}
+
 public class TextToStructure {
     private var systemPrompt: String
     private var grammar: String
@@ -33,18 +41,10 @@ public class TextToStructure {
                 throw error
             }
         }
-//        if observer == nil {
-//            observer = NotificationCenter.default.addObserver(forName:     UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: OperationQueue.main, using: {
-//                [weak self] notification in
-//                    self?.isMemoryOut = true
-//                    self?.stop()
-//            })
-//        }
     }
     
     deinit {
         print("deinit TextToStructure instance")
-//        NotificationCenter.default.removeObserver(observer)
     }
     
     public func generate (prompt: String) async throws -> String {
@@ -55,12 +55,31 @@ public class TextToStructure {
                     let url = URL(filePath: self.grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
-                let result = try await llamaState.generateWithGrammar(prompt: """
-[INST]create manual[/INST]\(prompt)
-""", grammar: LlamaGrammar(grammarString)!)
-                if isMemoryOut {
-                    throw LlamaError.outOfMemory
+                
+                //                let result = try await llamaState.generateWithGrammar(prompt: """
+                //[INST]generate manual[/INST]\(prompt)
+                //""", grammar: LlamaGrammar(grammarString)!)
+                
+                var result = try await llamaState.generateWithGrammar(prompt: """
+                    [INST]divide into instructions[/INST]\(prompt)
+                """, grammar: LlamaGrammar(grammarString)!)
+                do {
+                    var generatedJSON = result.data(using: .utf8)!
+                    var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
+                } catch {
+                    print("invalid json, regeneration started")
+                    result = try await llamaState.generateWithGrammar(prompt: """
+                        [INST]generate manual[/INST]\(prompt.dropLast())
+                        """, grammar: LlamaGrammar(grammarString)!)
+                    do {
+                        var generatedJSON = result.data(using: .utf8)!
+                        var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
+                    } catch {
+                        print("invalid json, regeneration started")
+                        result = try await llamaState.generateWithGrammar(prompt: "\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
+                    }
                 }
+                
                 return result
             }
             return try await self.generationTask!.value
