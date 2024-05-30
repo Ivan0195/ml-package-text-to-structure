@@ -25,6 +25,31 @@ class LlamaState: ObservableObject {
         }
     }
     
+    func generateRaw(prompt: String) async throws -> String {
+        guard prompt.count > 10 else {
+            throw LlamaError.emptyPrompt
+        }
+        guard let llamaContext else {
+            throw GenerationError.noLlamaContext
+        }
+        await llamaContext.completion_init(text: prompt)
+        var result = ""
+        while !Task.isCancelled {
+            let completion = await llamaContext.completion_loop()
+            result.append(contentsOf: completion.piece)
+            if result.contains(#/\n+/#) {
+                break
+            }
+            if completion.state != .normal {
+                break
+            }
+        }
+        if !Task.isCancelled {
+            await llamaContext.clear()
+        }
+        return result
+    }
+    
     func generateWithGrammar(prompt: String, grammar: LlamaGrammar) async throws -> String {
         if prompt.count < 10 {
             throw LlamaError.emptyPrompt

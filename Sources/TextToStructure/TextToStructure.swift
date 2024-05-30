@@ -56,13 +56,22 @@ public class TextToStructure {
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
                 
+                
+                
                 //                let result = try await llamaState.generateWithGrammar(prompt: """
                 //[INST]generate manual[/INST]\(prompt)
                 //""", grammar: LlamaGrammar(grammarString)!)
                 
+                
+                
                 var result = try await llamaState.generateWithGrammar(prompt: """
                     [INST]divide into instructions[/INST]\(prompt)
                 """, grammar: LlamaGrammar(grammarString)!)
+                
+                
+                //                var result = try await llamaState.generateWithGrammar(prompt: """
+                //                    [INST]return list of logical steps[/INST]\(prompt)
+                //                """, grammar: LlamaGrammar(grammarString)!)
                 do {
                     var generatedJSON = result.data(using: .utf8)!
                     var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
@@ -84,6 +93,22 @@ public class TextToStructure {
                     }
                 }
                 
+                return result
+            }
+            return try await self.generationTask!.value
+        } catch  {
+            if isMemoryOut {
+                throw LlamaError.outOfMemory
+            } else {
+                throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
+            }
+        }
+    }
+    
+    public func generateRaw (prompt: String, extraKnowledge: String? = "") async throws -> String {
+        do {
+            self.generationTask = Task {
+                var result = try await llamaState.generateRaw(prompt: "<s>[INST]You are AI assistant, you need to answer all questionst based on provided info.[/INST]\(extraKnowledge)</s>[INST]\(prompt)[/INST]")
                 return result
             }
             return try await self.generationTask!.value
