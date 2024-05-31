@@ -95,6 +95,10 @@ actor LlamaContext {
         let tokens = UnsafeMutablePointer<llama_token>.allocate(capacity: n_tokens)
         let tokenCount = llama_tokenize(model, inputText, Int32(utf8Count), tokens, Int32(n_tokens), true, false)
         var swiftTokens: [llama_token] = []
+        guard tokenCount > 0 else {
+            llama_free_model(model)
+            throw LlamaError.tooShortText
+        }
         for i in 0..<tokenCount {
             swiftTokens.append(tokens[Int(i)])
         }
