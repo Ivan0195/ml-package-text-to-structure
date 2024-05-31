@@ -148,7 +148,6 @@ actor LlamaContext {
     deinit {
         llama_batch_free(batch)
         if !isItForceStop {
-            print("here")
             llama_free(context)
             llama_free_model(model)
         }

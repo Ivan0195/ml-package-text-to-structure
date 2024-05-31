@@ -77,19 +77,18 @@ public class TextToStructure {
                 
                 
                 let withNotes = !grammarString.contains("step_short_description")
-                print(withNotes)
                 let possiblePromptsWithNotes = [
                     "[INST]divide into instructions[/INST]",
                     "[INST]generate manual[/INST]",
                 ]
                 let possiblePromptsWithoutNotes = [
-                    "[INST]create instructions description[/INST]",
-                    "[INST]generate instructions[/INST]",
+                    "[INST]return list of instructions[/INST]",
+                    "[INST]generate steps[/INST]",
                 ]
                 
                 
                 var result = try await llamaState.generateWithGrammar(prompt: """
-                    \(possiblePromptsWithNotes[0])\(prompt)
+                    \(withNotes ? possiblePromptsWithNotes[0] : possiblePromptsWithoutNotes[0])\(prompt)
                 """, grammar: LlamaGrammar(grammarString)!)
                 
                 do {
@@ -103,7 +102,7 @@ public class TextToStructure {
                     if await !llamaState.llamaContext!.isItForceStop {
                         print("invalid json, regeneration started")
                         result = try await llamaState.generateWithGrammar(prompt: """
-                            \(possiblePromptsWithNotes[1])\(prompt.dropLast())
+                            \(withNotes ? possiblePromptsWithNotes[1] : possiblePromptsWithoutNotes[1])\(withNotes ? String(prompt.dropLast()) : prompt)
                             """, grammar: LlamaGrammar(grammarString)!)
                     }
                     do {
