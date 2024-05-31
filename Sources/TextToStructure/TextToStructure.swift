@@ -9,9 +9,16 @@ import Combine
 public struct StepsJSON: Codable {
     public var steps: [GeneratedStep]
 }
+public struct StepsJSONWithoutNotes: Codable {
+    public var steps: [GeneratedStepWithoutDescription]
+}
 public struct GeneratedStep: Codable {
     public var step_name: String
     public var step_description: String?
+}
+
+public struct GeneratedStepWithoutDescription: Codable {
+    public var step_short_description: String
 }
 
 public class TextToStructure {
@@ -62,29 +69,50 @@ public class TextToStructure {
                 //[INST]generate manual[/INST]\(prompt)
                 //""", grammar: LlamaGrammar(grammarString)!)
                 
-                
-                
-                var result = try await llamaState.generateWithGrammar(prompt: """
-                    [INST]divide into instructions[/INST]\(prompt)
-                """, grammar: LlamaGrammar(grammarString)!)
-                
-                
                 //                var result = try await llamaState.generateWithGrammar(prompt: """
                 //                    [INST]return list of logical steps[/INST]\(prompt)
                 //                """, grammar: LlamaGrammar(grammarString)!)
+                
+                
+                
+                
+                let withNotes = !grammarString.contains("step_short_description")
+                print(withNotes)
+                let possiblePromptsWithNotes = [
+                    "[INST]divide into instructions[/INST]",
+                    "[INST]generate manual[/INST]",
+                ]
+                let possiblePromptsWithoutNotes = [
+                    "[INST]create instructions description[/INST]",
+                    "[INST]generate instructions[/INST]",
+                ]
+                
+                
+                var result = try await llamaState.generateWithGrammar(prompt: """
+                    \(possiblePromptsWithNotes[0])\(prompt)
+                """, grammar: LlamaGrammar(grammarString)!)
+                
                 do {
                     var generatedJSON = result.data(using: .utf8)!
-                    var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
+                    if withNotes {
+                        var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
+                    } else {
+                        var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
+                    }
                 } catch {
                     if await !llamaState.llamaContext!.isItForceStop {
                         print("invalid json, regeneration started")
                         result = try await llamaState.generateWithGrammar(prompt: """
-                            [INST]generate manual[/INST]\(prompt.dropLast())
+                            \(possiblePromptsWithNotes[1])\(prompt.dropLast())
                             """, grammar: LlamaGrammar(grammarString)!)
                     }
                     do {
                         var generatedJSON = result.data(using: .utf8)!
-                        var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
+                        if withNotes {
+                            var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
+                        } else {
+                            var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
+                        }
                     } catch {
                         if await !llamaState.llamaContext!.isItForceStop {
                             print("invalid json, regeneration started")
