@@ -115,7 +115,7 @@ public class TextToStructure {
                     } catch {
                         if await !llamaState.llamaContext!.isItForceStop {
                             print("invalid json, regeneration started")
-                            result = try await llamaState.generateWithGrammar(prompt: "\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
+                            result = try await llamaState.generateWithGrammar(prompt: "\(withNotes ? "" : "divide into instructions")\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
                         }
                     }
                 }
