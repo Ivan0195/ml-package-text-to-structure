@@ -80,9 +80,11 @@ public class TextToStructure {
                 let possiblePromptsWithNotes = [
                     "[INST]divide into instructions[/INST]",
                     "[INST]generate manual[/INST]",
+                    "[INST]return list of instructions[/INST]",
                 ]
                 let possiblePromptsWithoutNotes = [
                     "[INST]return list of instructions[/INST]",
+                    "[INST]group into instructions[/INST]",
                     "[INST]generate steps[/INST]",
                 ]
                 
@@ -102,7 +104,7 @@ public class TextToStructure {
                     if await !llamaState.llamaContext!.isItForceStop {
                         print("invalid json, regeneration started")
                         result = try await llamaState.generateWithGrammar(prompt: """
-                            \(withNotes ? possiblePromptsWithNotes[1] : possiblePromptsWithoutNotes[1])\(withNotes ? String(prompt.dropLast()) : prompt)
+                            \(withNotes ? possiblePromptsWithNotes[1] : possiblePromptsWithoutNotes[1])\(prompt.dropLast())
                             """, grammar: LlamaGrammar(grammarString)!)
                     }
                     do {
@@ -115,7 +117,20 @@ public class TextToStructure {
                     } catch {
                         if await !llamaState.llamaContext!.isItForceStop {
                             print("invalid json, regeneration started")
-                            result = try await llamaState.generateWithGrammar(prompt: "\(withNotes ? "" : "divide into instructions")\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
+                            result = try await llamaState.generateWithGrammar(prompt: "\(withNotes ? possiblePromptsWithNotes[2] : possiblePromptsWithoutNotes[2])\(prompt)", grammar: LlamaGrammar(grammarString)!)
+                        }
+                        do {
+                            var generatedJSON = result.data(using: .utf8)!
+                            if withNotes {
+                                var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
+                            } else {
+                                var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
+                            }
+                        } catch {
+                            if await !llamaState.llamaContext!.isItForceStop {
+                                print("invalid json, regeneration started")
+                                result = try await llamaState.generateWithGrammar(prompt: "\(withNotes ? "" : "divide into instructions")\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
+                            }
                         }
                     }
                 }
