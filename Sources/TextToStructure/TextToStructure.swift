@@ -62,79 +62,9 @@ public class TextToStructure {
                     let url = URL(filePath: self.grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
-                
-                
-                
-                //                let result = try await llamaState.generateWithGrammar(prompt: """
-                //[INST]generate manual[/INST]\(prompt)
-                //""", grammar: LlamaGrammar(grammarString)!)
-                
-                //                var result = try await llamaState.generateWithGrammar(prompt: """
-                //                    [INST]return list of logical steps[/INST]\(prompt)
-                //                """, grammar: LlamaGrammar(grammarString)!)
-                
-                
-                
-                
-                let withNotes = !grammarString.contains("step_short_description")
-                let possiblePromptsWithNotes = [
-                    "[INST]divide into instructions[/INST]",
-                    "[INST]generate manual[/INST]",
-                    "[INST]return list of instructions[/INST]",
-                ]
-                let possiblePromptsWithoutNotes = [
-                    "[INST]return list of instructions[/INST]",
-                    "[INST]group into instructions[/INST]",
-                    "[INST]generate steps[/INST]",
-                ]
-                
-                
                 var result = try await llamaState.generateWithGrammar(prompt: """
-                    \(withNotes ? possiblePromptsWithNotes[0] : possiblePromptsWithoutNotes[0])\(prompt)
+                    [INST]return list of instructions[/INST]\(prompt)
                 """, grammar: LlamaGrammar(grammarString)!)
-                
-                do {
-                    var generatedJSON = result.data(using: .utf8)!
-                    if withNotes {
-                        var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
-                    } else {
-                        var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
-                    }
-                } catch {
-                    if await !llamaState.llamaContext!.isItForceStop {
-                        print("invalid json, regeneration started")
-                        result = try await llamaState.generateWithGrammar(prompt: """
-                            \(withNotes ? possiblePromptsWithNotes[1] : possiblePromptsWithoutNotes[1])\(prompt.dropLast())
-                            """, grammar: LlamaGrammar(grammarString)!)
-                    }
-                    do {
-                        var generatedJSON = result.data(using: .utf8)!
-                        if withNotes {
-                            var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
-                        } else {
-                            var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
-                        }
-                    } catch {
-                        if await !llamaState.llamaContext!.isItForceStop {
-                            print("invalid json, regeneration started")
-                            result = try await llamaState.generateWithGrammar(prompt: "\(withNotes ? possiblePromptsWithNotes[2] : possiblePromptsWithoutNotes[2])\(prompt)", grammar: LlamaGrammar(grammarString)!)
-                        }
-                        do {
-                            var generatedJSON = result.data(using: .utf8)!
-                            if withNotes {
-                                var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
-                            } else {
-                                var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
-                            }
-                        } catch {
-                            if await !llamaState.llamaContext!.isItForceStop {
-                                print("invalid json, regeneration started")
-                                result = try await llamaState.generateWithGrammar(prompt: "\(withNotes ? "" : "divide into instructions")\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
-                            }
-                        }
-                    }
-                }
-                
                 return result
             }
             return try await self.generationTask!.value
