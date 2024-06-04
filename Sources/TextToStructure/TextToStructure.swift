@@ -136,7 +136,7 @@ public class TextToStructure {
     public func generateRaw (prompt: String, extraKnowledge: String? = "") async throws -> String {
         do {
             self.generationTask = Task {
-                var result = try await llamaState.generateRaw(prompt: "<s>[INST]You are AI assistant, you need to answer all questionst based on provided info.[/INST]\(extraKnowledge)</s>[INST]\(prompt)[/INST]")
+                var result = try await llamaState.generateRaw(prompt: "<s>[INST]You are AI assistant. Do not add any images to your answer. You need to answer all questionst based on provided info:[/INST]\(extraKnowledge)</s>[INST]\(prompt)[/INST]")
                 return result
             }
             return try await self.generationTask!.value

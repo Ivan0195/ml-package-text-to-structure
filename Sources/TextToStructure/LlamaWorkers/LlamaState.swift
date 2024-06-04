@@ -37,9 +37,9 @@ class LlamaState: ObservableObject {
         while !Task.isCancelled {
             let completion = await llamaContext.completion_loop()
             result.append(contentsOf: completion.piece)
-            if result.contains(#/\n+/#) {
-                break
-            }
+//            if result.contains(#/\n+/#) {
+//                break
+//            }
             if completion.state != .normal {
                 break
             }
