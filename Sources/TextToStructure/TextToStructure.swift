@@ -62,27 +62,15 @@ public class TextToStructure {
                     let url = URL(filePath: self.grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
-                
-                
-                
-                //                let result = try await llamaState.generateWithGrammar(prompt: """
-                //[INST]generate manual[/INST]\(prompt)
-                //""", grammar: LlamaGrammar(grammarString)!)
-                
-                //                var result = try await llamaState.generateWithGrammar(prompt: """
-                //                    [INST]return list of logical steps[/INST]\(prompt)
-                //                """, grammar: LlamaGrammar(grammarString)!)
-                
-                
-                
-                
                 let withNotes = !grammarString.contains("step_short_description")
                 print(withNotes)
                 let possiblePromptsWithNotes = [
+                    "[INST]create list of parts for this table saw[/INST]",
                     "[INST]divide into instructions[/INST]",
                     "[INST]generate manual[/INST]",
                 ]
                 let possiblePromptsWithoutNotes = [
+                    "[INST]Give me list of parts with short definition for this table saw[/INST]",
                     "[INST]create instructions description[/INST]",
                     "[INST]generate instructions[/INST]",
                 ]
@@ -91,35 +79,6 @@ public class TextToStructure {
                 var result = try await llamaState.generateWithGrammar(prompt: """
                     \(possiblePromptsWithNotes[0])\(prompt)
                 """, grammar: LlamaGrammar(grammarString)!)
-                
-                do {
-                    var generatedJSON = result.data(using: .utf8)!
-                    if withNotes {
-                        var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
-                    } else {
-                        var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
-                    }
-                } catch {
-                    if await !llamaState.llamaContext!.isItForceStop {
-                        print("invalid json, regeneration started")
-                        result = try await llamaState.generateWithGrammar(prompt: """
-                            \(possiblePromptsWithNotes[1])\(prompt.dropLast())
-                            """, grammar: LlamaGrammar(grammarString)!)
-                    }
-                    do {
-                        var generatedJSON = result.data(using: .utf8)!
-                        if withNotes {
-                            var decodedSteps = try JSONDecoder().decode(StepsJSON.self, from: generatedJSON)
-                        } else {
-                            var decodedSteps = try JSONDecoder().decode(StepsJSONWithoutNotes.self, from: generatedJSON)
-                        }
-                    } catch {
-                        if await !llamaState.llamaContext!.isItForceStop {
-                            print("invalid json, regeneration started")
-                            result = try await llamaState.generateWithGrammar(prompt: "\(prompt.dropLast())", grammar: LlamaGrammar(grammarString)!)
-                        }
-                    }
-                }
                 
                 return result
             }
@@ -136,7 +95,33 @@ public class TextToStructure {
     public func generateRaw (prompt: String, extraKnowledge: String? = "") async throws -> String {
         do {
             self.generationTask = Task {
-                var result = try await llamaState.generateRaw(prompt: "<s>[INST]You are AI assistant. Do not add any images to your answer. You need to answer all questionst based on provided info:[/INST]\(extraKnowledge)</s>[INST]\(prompt)[/INST]")
+//                var result = try await llamaState.generateRaw(prompt: """
+//<|system|>
+//Answer questions using this helpful information \(extraKnowledge). Finish your answer woth <end> tag.</s>
+//<|user|>
+//\(prompt)</s>
+//<|assistant|>
+//""")
+                var listOfModels = """
+List of 3d models:
+riving knife: RivingKnife_model.usdz
+saw blade: SawBlade_model.usdz
+table insert: TableInsert_model.usdz
+"""
+//                var result = try await llamaState.generateRaw(prompt: """
+//           <s>[INST] Help user with using, maintaining and repairing some facility.
+//            Act like an smart assistant, your name is Taqi.
+//            You have a list of parts with corresponding 3d model files for each part, check if your answer mention parts from this list.
+//            If yes replace mentioned part with corresponding rcproject file name for mentioned part. Finish your answer with <end> tag. [/INST]
+//            3D MODELS: \(listOfModels)
+//            CONTEXT: \(extraKnowledge)
+//            </s>
+//            [INST]
+//            QUESTION: \(prompt)
+//            [/INST]
+//""")
+
+                var result = try await llamaState.generateRaw(prompt: "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(extraKnowledge)</s>[INST]\(prompt)[/INST]")
                 return result
             }
             return try await self.generationTask!.value

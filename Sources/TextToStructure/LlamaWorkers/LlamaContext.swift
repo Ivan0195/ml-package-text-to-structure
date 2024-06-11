@@ -101,7 +101,7 @@ actor LlamaContext {
         }
         tokens.deallocate()
         
-        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.5 : Double(swiftTokens.count) * 1.35
+        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.5 : Double(swiftTokens.count) * 1.7
         
         guard swiftTokens.count > 10 else {
             print("Text is too short")
@@ -222,9 +222,9 @@ actor LlamaContext {
             var candidates_p = llama_token_data_array(data: buffer.baseAddress, size: buffer.count, sorted: false)
             llama_sample_grammar(context, &candidates_p, grammar.grammar)
             llama_sample_top_k(context, &candidates_p, 40, 2)
-            llama_sample_top_p(context, &candidates_p, 0.95, 2)
-            llama_sample_min_p(context, &candidates_p, 0.05, 2)
-            llama_sample_temp(context, &candidates_p, 0.8)
+            llama_sample_top_p(context, &candidates_p, 0.45, 2) //0.45 good for RAG
+            llama_sample_min_p(context, &candidates_p, 0.2, 2)
+            llama_sample_temp(context, &candidates_p, 0.2) //0.2 is good for RAG
             new_token_id = llama_sample_token(context, &candidates_p)
             llama_grammar_accept_token(context, grammar.grammar, new_token_id);
         }
@@ -255,7 +255,7 @@ actor LlamaContext {
         if new_token_str == "" {
             empty_strings = empty_strings + 1
         }
-        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" {
+        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" || new_token_str == "abbr" {
             empty_strings = 5
         }
         llama_batch_clear(&batch)
@@ -265,21 +265,21 @@ actor LlamaContext {
         modelAnswer += new_token_str
         var stepsArray = modelAnswer.components(separatedBy: "},")
         //стрим названия шагов
-        stream = stepsArray.enumerated().reduce("", {acc, str in
-            let endSkip = "\""
-            let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
-            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
-            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description + "\n"
-        })
+//        stream = stepsArray.enumerated().reduce("", {acc, str in
+//            let endSkip = "\""
+//            let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
+//            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
+//            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description + "\n"
+//        })
         //счетчик шагов
         //stream = String(stepsArray.count)
         // стрим исходного джейсона
-        //stream = modelAnswer
+        stream = modelAnswer
         if llama_decode(context, batch) != 0 {
             print("failed to evaluate llama!")
         }
         
-        return CompletionStatus(piece: new_token_str == "<|endoftext|>" ? "" : new_token_str, state: .normal)
+        return CompletionStatus(piece: new_token_str == "<|endoftext|>" || new_token_str == "abbr" ? "" : new_token_str, state: .normal)
     }
     
     
@@ -298,9 +298,9 @@ actor LlamaContext {
         candidates.withUnsafeMutableBufferPointer() { buffer in
             var candidates_p = llama_token_data_array(data: buffer.baseAddress, size: buffer.count, sorted: false)
             llama_sample_top_k(context, &candidates_p, 40, 2)
-            llama_sample_top_p(context, &candidates_p, 0.95, 2)
-            llama_sample_min_p(context, &candidates_p, 0.05, 2)
-            llama_sample_temp(context, &candidates_p, 0.8)
+            llama_sample_top_p(context, &candidates_p, 0.1, 2)
+            llama_sample_min_p(context, &candidates_p, 0.01, 2)
+            llama_sample_temp(context, &candidates_p, 0.01)
             new_token_id = llama_sample_token(context, &candidates_p)
         }
         

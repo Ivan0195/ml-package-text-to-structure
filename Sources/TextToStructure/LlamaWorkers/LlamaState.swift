@@ -37,9 +37,9 @@ class LlamaState: ObservableObject {
         while !Task.isCancelled {
             let completion = await llamaContext.completion_loop()
             result.append(contentsOf: completion.piece)
-//            if result.contains(#/\n+/#) {
-//                break
-//            }
+            if result.contains("<end>") {
+                break
+            }
             if completion.state != .normal {
                 break
             }
@@ -62,7 +62,7 @@ class LlamaState: ObservableObject {
         while !Task.isCancelled {
             let completion = await llamaContext.completion_loop_with_grammar(grammar: grammar)
             result.append(contentsOf: completion.piece)
-            if result.contains(#/\n+/#) {
+            if result.contains("<end>") {
                 break
             }
             if completion.state != .normal {
