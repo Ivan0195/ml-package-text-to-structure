@@ -3,8 +3,48 @@ import Foundation
 import SwiftUI
 import UIKit
 
-enum LlamaError: Error {
+enum LlamaError: LocalizedError {
     case couldNotInitializeContext
+    case invalidModelUrl
+    case invalidJSONScheme
+    case emptyPrompt
+    case outOfMemory
+    case error(title: String?, message: String?)
+    case tooLongText
+    case tooShortText
+    
+    var errorDescription: String? {
+        switch self {
+        case .tooLongText:
+            return "Your text is too long for generation"
+        case .tooShortText:
+            return "Your text is too short for generation"
+        case .invalidJSONScheme:
+            return "Invalid JSON Scheme"
+        case .couldNotInitializeContext:
+            return "Context initialization error"
+        case .invalidModelUrl:
+            return "Invalid provided model path"
+        case .emptyPrompt:
+            return "Prompt is empty or too short"
+        case .outOfMemory:
+            return "Process is running out of memory. Try to cancel another processes and try again"
+        case .error(title: let title, message: let message):
+            return message
+        }
+    }
+}
+
+extension String {
+
+    func slice(from: String, to: String) -> String? {
+
+        return (range(of: from)?.upperBound).flatMap { substringFrom in
+            (range(of: to, range: substringFrom..<endIndex)?.lowerBound).map { substringTo in
+                String(self[substringFrom..<substringTo])
+            }
+        }
+    }
 }
 
 @available(iOS 13.0.0, *)
@@ -15,65 +55,89 @@ actor LlamaContext {
     private var batch: llama_batch
     private var tokens_list: [llama_token]
     private var temporary_invalid_cchars: [CChar]
+    public var isItForceStop: Bool = false
+    private var modelAnswer: String = ""
     @Binding var stream: String
+    private var contextParams: llama_context_params
     
-    var n_len: Int32 = 8192
+    var n_len: Int32
     var n_cur: Int32 = 0
     var n_decode: Int32 = 0
     var empty_strings: Int32 = 0
     
-    init(model: OpaquePointer, context: OpaquePointer, stream: Binding<String>? = nil) {
-        self.model = model
-        self.context = context
+    init(modelPath: String, stream: Binding<String>? = nil, inputText: String) throws {
         self.tokens_list = []
-        self.batch = llama_batch_init(8192, 0, 1)
         self.temporary_invalid_cchars = []
         self._stream = stream ?? Binding.constant("")
-    }
-    
-    deinit {
-        llama_batch_free(batch)
-        llama_free(context)
-        llama_free_model(model)
-        llama_backend_free()
-    }
-    
-    private static var ctx_params: llama_context_params {
-        let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
-        var ctx_params = llama_context_default_params()
-        ctx_params.seed = 1
-        ctx_params.n_ctx = 8192
-        ctx_params.n_batch = 8192
-        ctx_params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_MAX_VALUE
-        ctx_params.n_threads       = UInt32(n_threads)
-        ctx_params.n_threads_batch = UInt32(n_threads)
-        return ctx_params
-    }
-    
-    static func createContext(path: String, stream: Binding<String>? = nil) throws -> LlamaContext {
+        
         var model_params = llama_model_default_params()
         let device = MTLCreateSystemDefaultDevice()
         let isSupportMetal3 = device?.supportsFamily(.metal3) ?? false
         if !isSupportMetal3 {
             model_params.n_gpu_layers = 0
+        } else {
+            if ProcessInfo().physicalMemory > 7598691840 {
+                if MTLCreateSystemDefaultDevice()!.name.contains("M") {
+                    model_params.n_gpu_layers = 999
+                } else {
+                    model_params.n_gpu_layers = 24
+                }
+            } else {
+                model_params.n_gpu_layers = 20
+            }
         }
-        let model = llama_load_model_from_file(path, model_params)
-        guard let model else {
-            print("Could not load model at \(path)")
-            throw LlamaError.couldNotInitializeContext
+        let model = llama_load_model_from_file(modelPath, model_params)
+        
+        let n_threads = max(1, min(8, ProcessInfo.processInfo.processorCount - 2))
+        
+        let utf8Count = inputText.utf8.count
+        let n_tokens = utf8Count + 1
+        let tokens = UnsafeMutablePointer<llama_token>.allocate(capacity: n_tokens)
+        let tokenCount = llama_tokenize(model, inputText, Int32(utf8Count), tokens, Int32(n_tokens), true, false)
+        var swiftTokens: [llama_token] = []
+        guard tokenCount > 0 else {
+            llama_free_model(model)
+            throw LlamaError.tooShortText
+        }
+        for i in 0..<tokenCount {
+            swiftTokens.append(tokens[Int(i)])
+        }
+        tokens.deallocate()
+        
+        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.5 : Double(swiftTokens.count) * 1.35
+        
+        guard swiftTokens.count > 10 else {
+            print("Text is too short")
+            llama_free_model(model)
+            throw LlamaError.tooShortText
+            return
         }
         
-        let context = llama_new_context_with_model(model, ctx_params)
-        guard let context else {
-            print("Could not load context!")
+        guard maxInputLength <= 12288 else {
+            print("Text is too long")
+            llama_free_model(model)
+            throw LlamaError.tooLongText
+            return
+        }
+        
+        var ctx_params = llama_context_default_params()
+        ctx_params.seed = 1
+        ctx_params.n_ctx = UInt32(maxInputLength)
+        ctx_params.n_batch = UInt32(maxInputLength)
+        ctx_params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_MAX_VALUE
+        ctx_params.n_threads       = UInt32(n_threads)
+        ctx_params.n_threads_batch = UInt32(n_threads)
+        self.batch = llama_batch_init(Int32(maxInputLength), 0, 1)
+        self.n_len = Int32(maxInputLength)
+        
+        self.contextParams = ctx_params
+        
+        guard let model else {
+            print("Could not load model at \(modelPath)")
             throw LlamaError.couldNotInitializeContext
         }
-        return LlamaContext(model: model, context: context, stream: stream)
-    }
-    
-    func reset_context() throws {
-        llama_free(self.context)
-        let context = llama_new_context_with_model(self.model, Self.ctx_params)
+        self.model = model
+        let context = llama_new_context_with_model(model, ctx_params)
         guard let context else {
             print("Could not load context!")
             throw LlamaError.couldNotInitializeContext
@@ -81,24 +145,57 @@ actor LlamaContext {
         self.context = context
     }
     
-    func completion_init(text: String) {
+    deinit {
+        llama_batch_free(batch)
+        if !isItForceStop {
+            llama_free(context)
+            llama_free_model(model)
+        }
+        llama_backend_free()
+        self.isItForceStop = false
+    }
+    
+    public func forceStop() {
+        if self.isItForceStop {
+            return
+        }
+        self.isItForceStop = true
+        llama_free(self.context)
+        llama_free_model(self.model)
+    }
+    
+    func reset_context() throws {
+        llama_free(self.context)
+        let context = llama_new_context_with_model(self.model, self.contextParams)
+        guard let context else {
+            print("Could not load context!")
+            throw LlamaError.couldNotInitializeContext
+        }
+        self.context = context
+    }
+    
+    func completion_init(text: String) async {
         tokens_list = tokenize(text: text, add_bos: true)
         temporary_invalid_cchars = []
         llama_batch_clear(&batch)
-        for i1 in 0..<tokens_list.count {
+        
+        for i1 in 0..<tokens_list.count where !isItForceStop {
             let i = Int(i1)
             llama_batch_add(&batch, tokens_list[i], Int32(i), [0], false)
         }
+        
         batch.logits[Int(batch.n_tokens) - 1] = 1 // true
         
-        if llama_decode(context, batch) != 0 {
+        if !Task.isCancelled && llama_decode(context, batch) != 0 {
             print("llama_decode() failed")
         }
-        
+        if Task.isCancelled {return}
+        print("llama decoded")
         n_cur = batch.n_tokens
         if stream != "" {
             stream = ""
         }
+        print("Prompt decoding successful")
     }
     
     struct CompletionStatus: Sendable, Equatable, Hashable {
@@ -161,14 +258,26 @@ actor LlamaContext {
         if new_token_str == "" {
             empty_strings = empty_strings + 1
         }
-        if new_token_str == "<|endoftext|>" {
+        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" {
             empty_strings = 5
         }
         llama_batch_clear(&batch)
         llama_batch_add(&batch, new_token_id, n_cur, [0], true)
         n_decode += 1
         n_cur += 1
-            stream += new_token_str
+        modelAnswer += new_token_str
+        var stepsArray = modelAnswer.components(separatedBy: "},")
+        //стрим названия шагов
+        stream = stepsArray.enumerated().reduce("", {acc, str in
+            let endSkip = "\""
+            let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
+            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
+            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description + "\n"
+        })
+        //счетчик шагов
+        //stream = String(stepsArray.count)
+        // стрим исходного джейсона
+        //stream = modelAnswer
         if llama_decode(context, batch) != 0 {
             print("failed to evaluate llama!")
         }
@@ -216,24 +325,24 @@ actor LlamaContext {
     /// - note: The result does not contain null-terminator
     private func token_to_piece(token: llama_token) -> [CChar] {
         let result = UnsafeMutablePointer<Int8>.allocate(capacity: 8)
-        result.initialize(repeating: Int8(0), count: 8)
-        defer {
-            result.deallocate()
-        }
-        let nTokens = llama_token_to_piece(model, token, result, 8)
-        
-        if nTokens < 0 {
-            let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
-            newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
-            defer {
-                newResult.deallocate()
-            }
-            let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens)
-            let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
-            return Array(bufferPointer)
-        } else {
-            let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
-            return Array(bufferPointer)
-        }
+                result.initialize(repeating: Int8(0), count: 8)
+                defer {
+                    result.deallocate()
+                }
+                let nTokens = llama_token_to_piece(model, token, result, 8, false)
+
+                if nTokens < 0 {
+                    let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
+                    newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
+                    defer {
+                        newResult.deallocate()
+                    }
+                    let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens, false)
+                    let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
+                    return Array(bufferPointer)
+                } else {
+                    let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
+                    return Array(bufferPointer)
+                }
     }
 }

@@ -8,7 +8,7 @@ let package = Package(
     platforms: [
         .macOS(.v14),
         .iOS(.v17),
-        .watchOS(.v8)
+        
     ],
     products: [
         .library(
@@ -16,7 +16,8 @@ let package = Package(
             targets: ["TextToStructure", "LlamaHelpers"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/ggerganov/llama.cpp.git", revision: "b8109bc0139f15a5b321909f47510b89dca47ffc"),
+        //b8109bc0139f15a5b321909f47510b89dca47ffc
+        .package(url: "https://github.com/ggerganov/llama.cpp.git", revision: "dda64fc17c97820ea9489eb0cc9ae8b8fdce4926"),
         ],
     targets: [
         .target(
