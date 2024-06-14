@@ -23,14 +23,14 @@ public struct GeneratedStepWithoutDescription: Codable {
 
 public class TextToStructure {
     private var systemPrompt: String
-    private var grammar: String
+    private var grammar: String?
     private var modelPath: String
     private var llamaState: LlamaState
     private var generationTask: Task<String, any Error>? = nil
     private var observer: NSObjectProtocol? = nil
     private var isMemoryOut: Bool = false
     @MainActor
-    public init(grammar: String, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil, inputText: String) async throws {
+    public init(grammar: String? = nil, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil, inputText: String) async throws {
         print("init text to structure")
         self.grammar = grammar
         self.modelPath = modelPath
@@ -54,12 +54,25 @@ public class TextToStructure {
         print("deinit TextToStructure instance")
     }
     
-    public func generate (prompt: String) async throws -> String {
+    public func generate(prompt: String, extraKnowledge: String? = "") async throws -> String {
+            do {
+                if self.grammar != nil {
+                    return try await self.generateWithGrammar(prompt: prompt)
+                } else {
+                    return try await self.generateRaw(prompt: prompt, extraKnowledge: extraKnowledge)
+                }
+            } catch {
+                throw error
+            }
+    }
+    
+    private func generateWithGrammar (prompt: String) async throws -> String {
         do {
             self.generationTask = Task(priority: .background) {
-                var grammarString: String = self.grammar
-                if self.grammar.contains("containers/Bundle/Application") {
-                    let url = URL(filePath: self.grammar)
+                guard self.grammar != nil else {throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")}
+                var grammarString: String = self.grammar!
+                if self.grammar!.contains("containers/Bundle/Application") {
+                    let url = URL(filePath: self.grammar!)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
                 let withNotes = !grammarString.contains("step_short_description")
@@ -92,7 +105,7 @@ public class TextToStructure {
         }
     }
     
-    public func generateRaw (prompt: String, extraKnowledge: String? = "") async throws -> String {
+    private func generateRaw (prompt: String, extraKnowledge: String? = "") async throws -> String {
         do {
             self.generationTask = Task {
 //                var result = try await llamaState.generateRaw(prompt: """
