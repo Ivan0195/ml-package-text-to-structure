@@ -258,7 +258,7 @@ actor LlamaContext {
         if new_token_str == "" {
             empty_strings = empty_strings + 1
         }
-        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" {
+        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" || new_token_id == 12 {
             empty_strings = 5
         }
         llama_batch_clear(&batch)
@@ -268,16 +268,16 @@ actor LlamaContext {
         modelAnswer += new_token_str
         var stepsArray = modelAnswer.components(separatedBy: "},")
         //стрим названия шагов
-        stream = stepsArray.enumerated().reduce("", {acc, str in
-            let endSkip = "\""
-            let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
-            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
-            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description + "\n"
-        })
+//        stream = stepsArray.enumerated().reduce("", {acc, str in
+//            let endSkip = "\""
+//            let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
+//            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
+//            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description + "\n"
+//        })
         //счетчик шагов
         //stream = String(stepsArray.count)
         // стрим исходного джейсона
-        //stream = modelAnswer
+        stream = modelAnswer
         if llama_decode(context, batch) != 0 {
             print("failed to evaluate llama!")
         }

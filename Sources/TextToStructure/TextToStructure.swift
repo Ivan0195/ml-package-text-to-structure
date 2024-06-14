@@ -62,8 +62,11 @@ public class TextToStructure {
                     let url = URL(filePath: self.grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
+                //Create step-by-step instructions
+                //Create manual steps from provided JSON
+                //create steps !!!BEST ONE
                 var result = try await llamaState.generateWithGrammar(prompt: """
-                    [INST]return list of instructions[/INST]\(prompt)
+                    [INST]create steps[/INST]\(prompt)
                 """, grammar: LlamaGrammar(grammarString)!)
                 return result
             }
