@@ -255,10 +255,13 @@ actor LlamaContext {
         } else {
             new_token_str = ""
         }
-        if new_token_str == "" {
+        if new_token_str == "" || new_token_id == 12 {
             empty_strings = empty_strings + 1
+        } else {
+            empty_strings = 0
         }
-        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" || new_token_id == 12 {
+
+        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" {
             empty_strings = 5
         }
         llama_batch_clear(&batch)
