@@ -64,9 +64,10 @@ public class TextToStructure {
                 }
                 //Create step-by-step instructions
                 //Create manual steps from provided JSON
-                //create steps !!!BEST ONE
+                //create steps !not bad
+                // [INST]generate list of instructions from this text: \(prompt)[/INST] !VERY GOOD
                 var result = try await llamaState.generateWithGrammar(prompt: """
-                    [INST]create steps[/INST]\(prompt)
+                    [INST]generate list of instructions from this text: \(prompt)[/INST]
                 """, grammar: LlamaGrammar(grammarString)!)
                 return result
             }
