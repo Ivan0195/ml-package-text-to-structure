@@ -104,7 +104,7 @@ actor LlamaContext {
         }
         tokens.deallocate()
         
-        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.5 : Double(swiftTokens.count) * 1.35
+        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.5 : Double(swiftTokens.count) * 2
         
         guard swiftTokens.count > 10 else {
             print("Text is too short")

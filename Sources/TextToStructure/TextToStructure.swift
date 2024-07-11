@@ -66,9 +66,23 @@ public class TextToStructure {
                 //Create manual steps from provided JSON
                 //create steps !not bad
                 // [INST]generate list of instructions from this text: \(prompt)[/INST] !VERY GOOD
+                // [INST]generate instructions: \(prompt)[/INST] !VERY GOOD!VERY GOOD!VERY GOOD!VERY GOOD
+                // [INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!<<<<<<<<<---------------------
+                
+                
+//                var llama3Prompt = """
+//                <|start_header_id|>system<|end_header_id|>
+//                                    generate list of instructions
+//                <|eot_id|>{{ end }}<|start_header_id|>user<|end_header_id|>
+//
+//                \(prompt)<|eot_id|>{{ end }}<|start_header_id|>assistant<|end_header_id|>
+//
+//                {{ .Response }}<|eot_id|>
+//                """
                 var result = try await llamaState.generateWithGrammar(prompt: """
-                    [INST]generate list of instructions from this text: \(prompt)[/INST]
+                [INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]
                 """, grammar: LlamaGrammar(grammarString)!)
+                //var result = try await llamaState.generateWithGrammar(prompt: llama3Prompt, grammar: LlamaGrammar(grammarString)!)
                 return result
             }
             return try await self.generationTask!.value
