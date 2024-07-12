@@ -46,4 +46,29 @@ class LlamaState: ObservableObject {
         }
         return result
     }
+    
+    func generateRaw(prompt: String) async throws -> String {
+            guard !prompt.isEmpty else {
+                throw LlamaError.tooShortText
+            }
+            guard let llamaContext else {
+                throw GenerationError.noLlamaContext
+            }
+            await llamaContext.completion_init(text: prompt)
+            var result = ""
+            while !Task.isCancelled {
+                let completion = await llamaContext.completion_loop()
+                result.append(contentsOf: completion.piece)
+                if result.contains("<end>") {
+                    break
+                }
+                if completion.state != .normal {
+                    break
+                }
+            }
+            if !Task.isCancelled {
+                await llamaContext.clear()
+            }
+            return result
+        }
 }

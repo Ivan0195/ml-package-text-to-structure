@@ -30,7 +30,7 @@ public class TextToStructure {
     private var observer: NSObjectProtocol? = nil
     private var isMemoryOut: Bool = false
     @MainActor
-    public init(grammar: String, modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil, inputText: String) async throws {
+    public init(grammar: String = "", modelPath: String, systemPrompt: String, streamResult: Binding<String>? = nil, inputText: String) async throws {
         print("init text to structure")
         self.grammar = grammar
         self.modelPath = modelPath
@@ -56,15 +56,32 @@ public class TextToStructure {
     
     public func generate (prompt: String) async throws -> String {
         do {
+            guard !grammar.isEmpty else { throw LlamaError.invalidJSONScheme }
             self.generationTask = Task(priority: .background) {
                 var grammarString: String = self.grammar
                 if self.grammar.contains("containers/Bundle/Application") {
                     let url = URL(filePath: self.grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
-                var result = try await llamaState.generateWithGrammar(prompt: """
+                let result = try await llamaState.generateWithGrammar(prompt: """
                     [INST]return list of instructions[/INST]\(prompt)
                 """, grammar: LlamaGrammar(grammarString)!)
+                return result
+            }
+            return try await self.generationTask!.value
+        } catch  {
+            if isMemoryOut {
+                throw LlamaError.outOfMemory
+            } else {
+                throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
+            }
+        }
+    }
+    
+    public func generateRaw (prompt: String, extraKnowledge: String? = "") async throws -> String {
+        do {
+            self.generationTask = Task {
+                let result = try await llamaState.generateRaw(prompt: "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(String(describing: extraKnowledge))</s>[INST]\(prompt)[/INST]")
                 return result
             }
             return try await self.generationTask!.value
