@@ -208,6 +208,68 @@ actor LlamaContext {
         }
     }
     
+    func completion_loop() -> CompletionStatus {
+            var new_token_id: llama_token = 0
+            
+            let n_vocab = llama_n_vocab(model)
+            let logits = llama_get_logits_ith(context, batch.n_tokens - 1)
+            
+            var candidates = Array<llama_token_data>()
+            candidates.reserveCapacity(Int(n_vocab))
+            
+            for token_id in 0..<n_vocab {
+                candidates.append(llama_token_data(id: token_id, logit: logits![Int(token_id)], p: 0.0))
+            }
+            candidates.withUnsafeMutableBufferPointer() { buffer in
+                var candidates_p = llama_token_data_array(data: buffer.baseAddress, size: buffer.count, sorted: false)
+                llama_sample_top_k(context, &candidates_p, 40, 2)
+                llama_sample_top_p(context, &candidates_p, 0.95, 2)
+                llama_sample_min_p(context, &candidates_p, 0.05, 2)
+                llama_sample_temp(context, &candidates_p, 0.8)
+                new_token_id = llama_sample_token(context, &candidates_p)
+            }
+            
+            if new_token_id == llama_token_eos(context) {
+                let new_token_str = String(cString: temporary_invalid_cchars + [0])
+                temporary_invalid_cchars.removeAll()
+                return CompletionStatus(piece: new_token_str, state: .eos)
+            } else if n_cur >= n_len || empty_strings >= 5 {
+                let new_token_str = String(cString: temporary_invalid_cchars + [0])
+                temporary_invalid_cchars.removeAll()
+                return CompletionStatus(piece: new_token_str, state: .maxlength)
+            }
+            
+            let new_token_cchars = token_to_piece(token: new_token_id)
+            temporary_invalid_cchars.append(contentsOf: new_token_cchars)
+            let new_token_str: String
+            if let string = String(validatingUTF8: temporary_invalid_cchars + [0]) {
+                temporary_invalid_cchars.removeAll()
+                new_token_str = string
+            } else if (0 ..< temporary_invalid_cchars.count).contains(where: {$0 != 0 && String(validatingUTF8: Array(temporary_invalid_cchars.suffix($0)) + [0]) != nil}) {
+                let string = String(cString: temporary_invalid_cchars + [0])
+                temporary_invalid_cchars.removeAll()
+                new_token_str = string
+            } else {
+                new_token_str = ""
+            }
+            if new_token_str == "" {
+                empty_strings = empty_strings + 1
+            }
+            if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" {
+                empty_strings = 5
+            }
+            llama_batch_clear(&batch)
+            llama_batch_add(&batch, new_token_id, n_cur, [0], true)
+            n_decode += 1
+            n_cur += 1
+            modelAnswer += new_token_str
+            if llama_decode(context, batch) != 0 {
+                print("failed to evaluate llama!")
+            }
+            stream = modelAnswer
+            
+            return CompletionStatus(piece: new_token_str, state: .normal)
+        }
     
     func completion_loop_with_grammar(grammar: LlamaGrammar) -> CompletionStatus {
         var new_token_id: llama_token = 0
@@ -269,10 +331,10 @@ actor LlamaContext {
         var stepsArray = modelAnswer.components(separatedBy: "},")
         //стрим названия шагов
         stream = stepsArray.enumerated().reduce("", {acc, str in
-            let endSkip = "\""
-            let startSkip = str.element.contains("step_short_description") ? "{\"step_short_description\":\"" : "{\"step_name\":\""
+            let endSkip = str.element.contains("step_short_description") ? "\"}" : "\","
+            let startSkip = str.element.contains("step_short_description") ? "\"step_short_description\"" : "\"step_name\""
             let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
-            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description + "\n"
+            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: ":", with: "") + "\n"
         })
         //счетчик шагов
         //stream = String(stepsArray.count)
