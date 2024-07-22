@@ -151,15 +151,15 @@ public class NewTextToStructure {
         }
     }
     
-    public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useLocalModel: Bool = true) async throws -> String {
+    public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false) async throws -> String {
         isGenerating = true
         var grammarString: String = grammar
         if grammar.contains("containers/Bundle/Application") {
             let url = URL(filePath: grammar)
             grammarString = try! String(contentsOf: url, encoding: .utf8)
         }
-        if !useLocalModel {
-            var result = try await apiLlama.generateSteps(subtitles: prompt, grammarScheme: grammar)
+        if !useCloudModel {
+            let result = try await apiLlama.generateSteps(subtitles: prompt, grammarScheme: grammar)
             isGenerating = true
             return result
         } else {
@@ -172,8 +172,8 @@ public class NewTextToStructure {
         }
     }
     
-    public func generateRaw(prompt: String, extraKnowledge: String = "", useLocalModel: Bool = true) async throws -> String {
-        if useLocalModel {
+    public func generateRaw(prompt: String, extraKnowledge: String = "", useCloudModel: Bool = false) async throws -> String {
+        if useCloudModel {
             do {
                 self.generationTask = Task {
                     let result = try await llamaState?.generateRaw(prompt: "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(String(describing: extraKnowledge))</s>[INST]\(prompt)[/INST]")

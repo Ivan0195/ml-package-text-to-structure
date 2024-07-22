@@ -331,7 +331,7 @@ actor LlamaContext {
         var stepsArray = modelAnswer.components(separatedBy: "},")
         //стрим названия шагов
         stream = stepsArray.enumerated().reduce("", {acc, str in
-            let endSkip = str.element.contains("step_short_description") ? "\"}" : "\","
+            let endSkip = str.element.contains("step_short_description") ? ".\"" : "\","
             let startSkip = str.element.contains("step_short_description") ? "\"step_short_description\"" : "\"step_name\""
             let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
             return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: ":", with: "") + "\n"
@@ -384,7 +384,6 @@ actor LlamaContext {
         return swiftTokens
     }
     
-    /// - note: The result does not contain null-terminator
     private func token_to_piece(token: llama_token) -> [CChar] {
         let result = UnsafeMutablePointer<Int8>.allocate(capacity: 8)
                 result.initialize(repeating: Int8(0), count: 8)
