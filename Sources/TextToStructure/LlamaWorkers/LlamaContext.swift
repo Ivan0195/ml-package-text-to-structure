@@ -229,7 +229,7 @@ actor LlamaContext {
             llama_sample_min_p(context, &candidates_p, 0.05, 2)
             llama_sample_temp(context, &candidates_p, 0.8)
             new_token_id = llama_sample_token(context, &candidates_p)
-            llama_grammar_accept_token(context, grammar.grammar, new_token_id);
+            llama_grammar_accept_token(grammar.grammar, context, new_token_id);
         }
         
         if new_token_id == llama_token_eos(context) {
@@ -327,25 +327,25 @@ actor LlamaContext {
     
     /// - note: The result does not contain null-terminator
     private func token_to_piece(token: llama_token) -> [CChar] {
-        let result = UnsafeMutablePointer<Int8>.allocate(capacity: 8)
-                result.initialize(repeating: Int8(0), count: 8)
-                defer {
-                    result.deallocate()
-                }
-                let nTokens = llama_token_to_piece(model, token, result, 8, false)
+            let result = UnsafeMutablePointer<Int8>.allocate(capacity: 8)
+            result.initialize(repeating: Int8(0), count: 8)
+            defer {
+                result.deallocate()
+            }
+            let nTokens = llama_token_to_piece(model, token, result, 8, 0, false)
 
-                if nTokens < 0 {
-                    let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
-                    newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
-                    defer {
-                        newResult.deallocate()
-                    }
-                    let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens, false)
-                    let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
-                    return Array(bufferPointer)
-                } else {
-                    let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
-                    return Array(bufferPointer)
+            if nTokens < 0 {
+                let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
+                newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
+                defer {
+                    newResult.deallocate()
                 }
-    }
+                let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens, 0, false)
+                let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
+                return Array(bufferPointer)
+            } else {
+                let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
+                return Array(bufferPointer)
+            }
+        }
 }

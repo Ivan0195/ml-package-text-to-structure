@@ -62,6 +62,17 @@ public class TextToStructure {
                     let url = URL(filePath: self.grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
+                
+                
+                let llama3_1SystemPrompt = """
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+skip introduction and conclusion, make steps for manual
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+What is the capital for France?<|eot_id|><|start_header_id|>\(prompt)<|end_header_id|>
+"""
+                
+                
                 //Create step-by-step instructions
                 //Create manual steps from provided JSON
                 //create steps !not bad
@@ -70,19 +81,17 @@ public class TextToStructure {
                 // [INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!<<<<<<<<<---------------------
                 
                 
-//                var llama3Prompt = """
-//                <|start_header_id|>system<|end_header_id|>
-//                                    generate list of instructions
-//                <|eot_id|>{{ end }}<|start_header_id|>user<|end_header_id|>
-//
-//                \(prompt)<|eot_id|>{{ end }}<|start_header_id|>assistant<|end_header_id|>
-//
-//                {{ .Response }}<|eot_id|>
-//                """
-                var result = try await llamaState.generateWithGrammar(prompt: """
-                [INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]
-                """, grammar: LlamaGrammar(grammarString)!)
-                //var result = try await llamaState.generateWithGrammar(prompt: llama3Prompt, grammar: LlamaGrammar(grammarString)!)
+                var llama3Prompt = """
+                <|start_header_id|>system<|end_header_id|>
+                create instructions from, skip unnecessary parts like introductions and conclusions<|eot_id|>
+                <|start_header_id|>user<|end_header_id|>
+                \(prompt)<|eot_id|>
+                <|start_header_id|>assistant<|end_header_id|><|eot_id|>
+                """
+//                var result = try await llamaState.generateWithGrammar(prompt: """
+//                [INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]
+//                """, grammar: LlamaGrammar(grammarString)!)
+                var result = try await llamaState.generateWithGrammar(prompt: llama3_1SystemPrompt, grammar: LlamaGrammar(grammarString)!)
                 return result
             }
             return try await self.generationTask!.value
@@ -98,6 +107,5 @@ public class TextToStructure {
     public func stop () {
         self.generationTask?.cancel()
         Task { await self.llamaState.llamaContext?.forceStop() }
-        //NotificationCenter.default.removeObserver(observer)
     }
 }
