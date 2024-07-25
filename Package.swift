@@ -17,7 +17,8 @@ let package = Package(
     ],
     dependencies: [
         //b8109bc0139f15a5b321909f47510b89dca47ffc
-        .package(url: "https://github.com/ggerganov/llama.cpp.git", revision: "dda64fc17c97820ea9489eb0cc9ae8b8fdce4926"),
+        //dda64fc17c97820ea9489eb0cc9ae8b8fdce4926
+        .package(url: "https://github.com/ggerganov/llama.cpp.git", revision: "de280085e7917dbb7f5753de5842ff4455f82a81"),
         ],
     targets: [
         .target(
