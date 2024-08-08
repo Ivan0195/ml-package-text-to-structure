@@ -50,13 +50,13 @@ public class TextToStructure {
     
     public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false) async throws -> String {
         isGenerating = true
-        var grammarString: String = grammar
-        if grammar.contains("containers/Bundle/Application") {
-            let url = URL(filePath: grammar)
-            grammarString = try! String(contentsOf: url, encoding: .utf8)
-        }
         if useCloudModel {
-            let result = try await apiLlama.generateSteps(subtitles: prompt, grammarScheme: grammar)
+            var grammarString: String = grammar
+            if grammar.contains("containers/Bundle/Application") {
+                let url = URL(filePath: grammar)
+                grammarString = try! String(contentsOf: url, encoding: .utf8)
+            }
+            let result = try await apiLlama.generateSteps(subtitles: prompt, grammarScheme: grammarString)
             isGenerating = false
             return result
         } else {
@@ -73,13 +73,21 @@ public class TextToStructure {
                     throw error
                 }
             }
-            let instruction: String = "[INST]\(systemPrompt ?? "return list of instructions")[/INST] prompt"
-            let result = try await llamaState?.generateWithGrammar(prompt: """
+            self.generationTask = Task {
+                var grammarString: String = grammar
+                if grammar.contains("containers/Bundle/Application") {
+                    let url = URL(filePath: grammar)
+                    grammarString = try! String(contentsOf: url, encoding: .utf8)
+                }
+                let _instruction: String = "[INST]\(systemPrompt ?? "return list of instructions")[/INST] prompt"
+                let result = try await llamaState?.generateWithGrammar(prompt: """
                 [INST]return list of instructions[/INST]\(prompt)
             """, grammar: LlamaGrammar(grammarString)!)
-            isGenerating = false
-            self.llamaState = nil
-            return result ?? ""
+                isGenerating = false
+                self.llamaState = nil
+                return result ?? ""
+            }
+            return try await self.generationTask!.value
         }
     }
     
