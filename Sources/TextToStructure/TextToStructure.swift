@@ -35,28 +35,17 @@ public class TextToStructure {
     private var llamaState: LlamaState? = nil
     private let apiLlama = CloudLlamaAPIService()
     private var generationTask: Task<String, any Error>? = nil
+    private var streamResult: Binding<String>? = nil
     
     @MainActor
-    public init(modelPath: String = "", streamResult: Binding<String>? = nil, inputText: String) async throws {
+    public init(modelPath: String = "", streamResult: Binding<String>? = nil) async throws {
         print("init text to structure")
         self.modelPath = modelPath
         guard !modelPath.isEmpty else {
             print("modelPath is empty")
             return
         }
-        if streamResult == nil {
-            do {
-                self.llamaState = try LlamaState(modelUrl: modelPath, inputText: inputText)
-            } catch {
-                throw error
-            }
-        } else {
-            do {
-                self.llamaState = try LlamaState(modelUrl: modelPath, streamResult: streamResult, inputText: inputText)
-            } catch {
-                throw error
-            }
-        }
+        self.streamResult = streamResult
     }
     
     public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false) async throws -> String {
@@ -66,16 +55,30 @@ public class TextToStructure {
             let url = URL(filePath: grammar)
             grammarString = try! String(contentsOf: url, encoding: .utf8)
         }
-        if !useCloudModel {
+        if useCloudModel {
             let result = try await apiLlama.generateSteps(subtitles: prompt, grammarScheme: grammar)
-            isGenerating = true
+            isGenerating = false
             return result
         } else {
+            if streamResult == nil {
+                do {
+                    self.llamaState = try await LlamaState(modelUrl: modelPath, inputText: prompt)
+                } catch {
+                    throw error
+                }
+            } else {
+                do {
+                    self.llamaState = try await LlamaState(modelUrl: modelPath, streamResult: streamResult, inputText: prompt)
+                } catch {
+                    throw error
+                }
+            }
             let instruction: String = "[INST]\(systemPrompt ?? "return list of instructions")[/INST] prompt"
             let result = try await llamaState?.generateWithGrammar(prompt: """
                 [INST]return list of instructions[/INST]\(prompt)
             """, grammar: LlamaGrammar(grammarString)!)
-            isGenerating = true
+            isGenerating = false
+            self.llamaState = nil
             return result ?? ""
         }
     }
@@ -83,20 +86,36 @@ public class TextToStructure {
     public func generateRaw(prompt: String, extraKnowledge: String = "", useCloudModel: Bool = false) async throws -> String {
         if useCloudModel {
             do {
-                self.generationTask = Task {
-                    let result = try await llamaState?.generateRaw(prompt: "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(String(describing: extraKnowledge))</s>[INST]\(prompt)[/INST]")
-                    return result ?? ""
-                }
-                return try await self.generationTask!.value
-            } catch  {
-                    throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
-            }
-        } else {
-            do {
                 let res = try await apiLlama.generateVocabularyAPI(prompt: prompt, extraInfo: extraKnowledge)
                 return res.replacingOccurrences(of: "<end>", with: "")
             } catch {
                 throw LlamaError.couldNotInitializeContext
+            }
+        } else {
+            do {
+                let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(String(describing: extraKnowledge))</s>[INST]\(prompt)[/INST]"
+                if streamResult == nil {
+                    do {
+                        self.llamaState = try await LlamaState(modelUrl: modelPath, inputText: promptForGeneration)
+                    } catch {
+                        throw error
+                    }
+                } else {
+                    do {
+                        self.llamaState = try await LlamaState(modelUrl: modelPath, streamResult: streamResult, inputText: promptForGeneration)
+                    } catch {
+                        throw error
+                    }
+                }
+                self.generationTask = Task {
+                    let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(String(describing: extraKnowledge))</s>[INST]\(prompt)[/INST]"
+                    let result = try await llamaState?.generateRaw(prompt: promptForGeneration)
+                    self.llamaState = nil
+                    return result ?? "no result"
+                }
+                return try await self.generationTask!.value
+            } catch  {
+                    throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
             }
         }
     }
