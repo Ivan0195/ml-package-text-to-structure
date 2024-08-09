@@ -38,17 +38,17 @@ class CloudLlamaAPIService {
         return answer ?? "new string"
     }
     
-    func generateSteps(subtitles: String, grammarScheme: String) async throws -> String {
-        let url = URL(string: "http://192.168.1.115/manifestMaker/generateSteps")!
+    func generateSteps(subtitles: String, withDescription: Bool) async throws -> String {
+        let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/mistral/manifestMaker/generateSteps")!
         var request = URLRequest(url: url)
-        let json: [String: String] = ["subtitles": subtitles, "grammarScheme": grammarScheme]
+        let json: [String: Any] = ["subtitles": subtitles, "withDescription": withDescription]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
-        print("JSONBODY:     ",jsonData)
         request.httpMethod = "POST"
         request.httpBody = jsonData
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         let (data, _) = try await URLSession.shared.data(for: request)
+        print(data)
         print("send Request")
         let answer = String(decoding: data, as: UTF8.self)
         return answer ?? "new string"

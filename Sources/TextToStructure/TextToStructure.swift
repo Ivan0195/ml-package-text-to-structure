@@ -56,7 +56,7 @@ public class TextToStructure {
                 let url = URL(filePath: grammar)
                 grammarString = try! String(contentsOf: url, encoding: .utf8)
             }
-            let result = try await apiLlama.generateSteps(subtitles: prompt, grammarScheme: grammarString)
+            let result = try await apiLlama.generateSteps(subtitles: prompt, withDescription: grammarString.contains("step_name"))
             isGenerating = false
             return result
         } else {
