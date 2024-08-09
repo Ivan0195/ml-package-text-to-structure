@@ -37,7 +37,7 @@ public class TextToStructure {
     private var generationTask: Task<String, any Error>? = nil
     private var streamResult: Binding<String>? = nil
     
-    @MainActor
+    
     public init(modelPath: String = "", streamResult: Binding<String>? = nil) async throws {
         print("init text to structure")
         self.modelPath = modelPath

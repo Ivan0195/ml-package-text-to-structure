@@ -10,7 +10,7 @@ enum GenerationError: Error {
 }
 
 
-@MainActor
+
 class LlamaState: ObservableObject {
     
     private var generationTask: Task<Void, any Error>?
