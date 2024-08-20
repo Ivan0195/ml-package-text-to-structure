@@ -1,0 +1,13 @@
+{
+  "pins" : [
+    {
+      "identity" : "llama.cpp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ggerganov/llama.cpp.git",
+      "state" : {
+        "revision" : "c21a896405de4cdf4207eb8130555ceaac0ab110"
+      }
+    }
+  ],
+  "version" : 2
+}

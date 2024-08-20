@@ -32,8 +32,11 @@ class CloudLlamaAPIService {
         request.httpBody = jsonData
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
         print("send Request")
+        let res = response as? HTTPURLResponse
+        let validStatusCodes = 200...399
+        guard validStatusCodes.contains(res?.statusCode ?? 999) else {throw LlamaError.couldNotInitializeContext}
         let answer = String(decoding: data, as: UTF8.self)
         return answer ?? "new string"
     }
@@ -47,9 +50,11 @@ class CloudLlamaAPIService {
         request.httpBody = jsonData
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, _) = try await URLSession.shared.data(for: request)
-        print(data)
+        let (data, response) = try await URLSession.shared.data(for: request)
         print("send Request")
+        let res = response as? HTTPURLResponse
+        let validStatusCodes = 200...399
+        guard validStatusCodes.contains(res?.statusCode ?? 999) else {throw LlamaError.couldNotInitializeContext}
         let answer = String(decoding: data, as: UTF8.self)
         return answer ?? "new string"
     }
