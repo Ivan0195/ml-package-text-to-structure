@@ -36,6 +36,7 @@ public class TextToStructure {
     private let apiLlama = CloudLlamaAPIService()
     private var generationTask: Task<String, any Error>? = nil
     private var streamResult: Binding<String>? = nil
+    private var isRequestCanceled: Bool = false
     
     
     public init(modelPath: String = "", streamResult: Binding<String>? = nil) async throws {
@@ -51,6 +52,7 @@ public class TextToStructure {
     public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false) async throws -> String {
         isGenerating = true
         if useCloudModel {
+            isRequestCanceled = false
             var grammarString: String = grammar
             if grammar.contains("containers/Bundle/Application") {
                 let url = URL(filePath: grammar)
@@ -58,6 +60,7 @@ public class TextToStructure {
             }
             let result = try await apiLlama.generateSteps(subtitles: prompt, withDescription: grammarString.contains("step_name"))
             isGenerating = false
+            guard !isRequestCanceled else {throw GenerationError.interrupt}
             return result
         } else {
             if streamResult == nil {
@@ -93,8 +96,10 @@ public class TextToStructure {
     
     public func generateRaw(prompt: String, extraKnowledge: String = "", useCloudModel: Bool = false) async throws -> String {
         if useCloudModel {
+            isRequestCanceled = false
             do {
                 let res = try await apiLlama.generateVocabularyAPI(prompt: prompt, extraInfo: extraKnowledge)
+                guard !isRequestCanceled else {throw GenerationError.interrupt}
                 return res.replacingOccurrences(of: "<end>", with: "")
             } catch {
                 throw LlamaError.couldNotInitializeContext
@@ -129,6 +134,7 @@ public class TextToStructure {
     }
     
     public func stop () {
+        isRequestCanceled = true
         self.generationTask?.cancel()
         Task { await self.llamaState?.llamaContext?.forceStop() }
     }
