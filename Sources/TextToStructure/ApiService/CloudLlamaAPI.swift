@@ -36,7 +36,12 @@ class CloudLlamaAPIService {
         print("send Request")
         let res = response as? HTTPURLResponse
         let validStatusCodes = 200...399
-        guard validStatusCodes.contains(res?.statusCode ?? 999) else {throw LlamaError.couldNotInitializeContext}
+        guard validStatusCodes.contains(res?.statusCode ?? 999) else {
+            if res?.statusCode == 413 {
+                throw LlamaError.tooLongText
+            }
+            throw LlamaError.couldNotInitializeContext
+        }
         let answer = String(decoding: data, as: UTF8.self)
         return answer ?? "new string"
     }
@@ -54,7 +59,12 @@ class CloudLlamaAPIService {
         print("send Request")
         let res = response as? HTTPURLResponse
         let validStatusCodes = 200...399
-        guard validStatusCodes.contains(res?.statusCode ?? 999) else {throw LlamaError.couldNotInitializeContext}
+        guard validStatusCodes.contains(res?.statusCode ?? 999) else {
+            if res?.statusCode == 413 {
+                throw LlamaError.tooLongText
+            }
+            throw LlamaError.couldNotInitializeContext
+        }
         let answer = String(decoding: data, as: UTF8.self)
         return answer ?? "new string"
     }
