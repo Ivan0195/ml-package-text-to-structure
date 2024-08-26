@@ -5,18 +5,21 @@ import LlamaHelpers
 import Combine
 
 @available(iOS 13.0.0, *)
-//
-//public struct StepsJSON: Codable {
-//    public var steps: [GeneratedStep]
-//}
-//public struct GeneratedStep: Codable {
-//    public var step_name: String
-//    public var step_description: String?
-//}
-
 public struct StepsJSON: Codable {
     public var steps: [GeneratedStep]
 }
+
+public struct StepsJSONWithClips: Codable {
+    public var steps: [GeneratedStepWithClip]
+}
+
+public struct GeneratedStepWithClip: Codable {
+    public var step_name: String
+    public var step_description: String?
+    public var start: Int?
+    public var end: Int?
+}
+
 public struct StepsJSONWithoutNotes: Codable {
     public var steps: [GeneratedStepWithoutDescription]
 }
@@ -24,6 +27,8 @@ public struct GeneratedStep: Codable {
     public var step_name: String
     public var step_description: String?
 }
+
+
 
 public struct GeneratedStepWithoutDescription: Codable {
     public var step_short_description: String
@@ -49,7 +54,7 @@ public class TextToStructure {
         self.streamResult = streamResult
     }
     
-    public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false) async throws -> String {
+    public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false, withClips: Bool = false) async throws -> String {
         isGenerating = true
         if useCloudModel {
             isRequestCanceled = false
@@ -82,12 +87,27 @@ public class TextToStructure {
                     let url = URL(filePath: grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
-                let _instruction: String = "[INST]\(systemPrompt ?? "return list of instructions")[/INST] prompt"
-                let result = try await llamaState?.generateWithGrammar(prompt: """
+                var result = try await llamaState?.generateWithGrammar(
+                    prompt: withClips ? """
+                [INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]
+            """ : """
                 [INST]return list of instructions[/INST]\(prompt)
-            """, grammar: LlamaGrammar(grammarString)!)
+            """
+                    , grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil
+                if withClips {
+                    let jsonstring = result?.data(using: .utf8)
+                    var steps = try! JSONDecoder().decode(StepsJSONWithClips.self, from: jsonstring!)
+                    let newSteps = steps.steps.enumerated().map{(index, step) in
+                        return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, start: step.start, end: index+1 == steps.steps.count ? nil : steps.steps[index+1].start ?? nil)
+                        
+                    }
+                    steps.steps = newSteps
+                    let stepsToJson = try JSONEncoder().encode(steps)
+                    let stepsJsonString = String(data: stepsToJson, encoding: .utf8)
+                    result = stepsJsonString
+                }
                 return result ?? ""
             }
             return try await self.generationTask!.value
@@ -128,7 +148,7 @@ public class TextToStructure {
                 }
                 return try await self.generationTask!.value
             } catch  {
-                    throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
+                throw LlamaError.error(title: "Error while generation", message: "Some error occured while generation, try one more time")
             }
         }
     }
