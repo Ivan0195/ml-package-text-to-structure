@@ -88,11 +88,7 @@ public class TextToStructure {
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
                 var result = try await llamaState?.generateWithGrammar(
-                    prompt: withClips ? """
-                [INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]
-            """ : """
-                [INST]return list of instructions[/INST]\(prompt)
-            """
+                    prompt: withClips ? "[INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]" : "[INST]return list of instructions \(prompt)[/INST]"
                     , grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil

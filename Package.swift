@@ -19,7 +19,8 @@ let package = Package(
         //b8109bc0139f15a5b321909f47510b89dca47ffc
         //dda64fc17c97820ea9489eb0cc9ae8b8fdce4926
         //de280085e7917dbb7f5753de5842ff4455f82a81
-        .package(url: "https://github.com/ggerganov/llama.cpp.git", revision: "c21a896405de4cdf4207eb8130555ceaac0ab110"),
+        //c21a896405de4cdf4207eb8130555ceaac0ab110
+        .package(url: "https://github.com/ggerganov/llama.cpp.git", revision: "de280085e7917dbb7f5753de5842ff4455f82a81"),
         ],
     targets: [
         .target(
