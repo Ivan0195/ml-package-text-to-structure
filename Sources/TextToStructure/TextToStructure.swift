@@ -56,6 +56,17 @@ public class TextToStructure {
     
     public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false, withClips: Bool = false) async throws -> String {
         isGenerating = true
+        var subsString = prompt.components(separatedBy: "},")
+        let noClipsInput = prompt.contains("{sentence: ")
+        ? subsString.reduce("", {acc, str in
+            let endSkip = ", start:"
+            let startSkip = "{sentence: "
+            let description = str.slice(from: startSkip, to: endSkip) ?? ""
+            return acc + description + "  "
+        })
+        : prompt
+        print(noClipsInput)
+        print(prompt)
         if useCloudModel {
             isRequestCanceled = false
             var grammarString: String = grammar
@@ -63,20 +74,20 @@ public class TextToStructure {
                 let url = URL(filePath: grammar)
                 grammarString = try! String(contentsOf: url, encoding: .utf8)
             }
-            let result = try await apiLlama.generateSteps(subtitles: prompt, withDescription: grammarString.contains("step_name"))
+            let result = try await apiLlama.generateSteps(subtitles: withClips ? prompt : noClipsInput, withDescription: grammarString.contains("step_name"))
             isGenerating = false
             guard !isRequestCanceled else {throw GenerationError.interrupt}
             return result
         } else {
             if streamResult == nil {
                 do {
-                    self.llamaState = try await LlamaState(modelUrl: modelPath, inputText: prompt)
+                    self.llamaState = try await LlamaState(modelUrl: modelPath, inputText: withClips ? prompt : noClipsInput)
                 } catch {
                     throw error
                 }
             } else {
                 do {
-                    self.llamaState = try await LlamaState(modelUrl: modelPath, streamResult: streamResult, inputText: prompt)
+                    self.llamaState = try await LlamaState(modelUrl: modelPath, streamResult: streamResult, inputText: withClips ? prompt : noClipsInput)
                 } catch {
                     throw error
                 }
@@ -88,7 +99,7 @@ public class TextToStructure {
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
                 var result = try await llamaState?.generateWithGrammar(
-                    prompt: withClips ? "[INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]" : "[INST]return list of instructions \(prompt)[/INST]"
+                    prompt: withClips ? "[INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]" : "[INST]return list of instructions \(noClipsInput)[/INST]"
                     , grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil
