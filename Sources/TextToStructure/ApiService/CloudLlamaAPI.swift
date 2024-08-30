@@ -46,10 +46,10 @@ class CloudLlamaAPIService {
         return answer ?? "new string"
     }
     
-    func generateSteps(subtitles: String, withDescription: Bool) async throws -> String {
+    func generateSteps(subtitles: String, withDescription: Bool, withClips: Bool = false) async throws -> String {
         let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/mistral/manifestMaker/generateSteps")!
         var request = URLRequest(url: url)
-        let json: [String: Any] = ["subtitles": subtitles, "withDescription": withDescription]
+        let json: [String: Any] = ["subtitles": subtitles, "withDescription": withDescription, "withClips": withClips]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
         request.httpMethod = "POST"
         request.httpBody = jsonData
