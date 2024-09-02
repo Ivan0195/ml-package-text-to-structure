@@ -56,7 +56,7 @@ public class TextToStructure {
     
     public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false, withClips: Bool = false) async throws -> String {
         isGenerating = true
-        var subsString = prompt.components(separatedBy: "},")
+        var subsString = prompt.components(separatedBy: ",\n")
         let noClipsInput = prompt.contains("{sentence: ")
         ? subsString.reduce("", {acc, str in
             let endSkip = ", start:"
@@ -65,6 +65,7 @@ public class TextToStructure {
             return acc + description + "  "
         })
         : prompt
+        var finishTime = subsString[subsString.count - 1].slice(from: "start: ", to: "}")
         print(noClipsInput)
         print(prompt)
         if useCloudModel {
@@ -103,11 +104,20 @@ public class TextToStructure {
                     , grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil
+                var steps: StepsJSONWithClips
                 if withClips {
                     let jsonstring = result?.data(using: .utf8)
-                    var steps = try! JSONDecoder().decode(StepsJSONWithClips.self, from: jsonstring!)
+                    do {
+                        steps = try JSONDecoder().decode(StepsJSONWithClips.self, from: jsonstring!)
+                    } catch {
+                        if await llamaState?.llamaContext?.isItForceStop == true {
+                            throw GenerationError.interrupt
+                        }
+                        throw LlamaError.couldNotInitializeContext
+                    }
+                    
                     let newSteps = steps.steps.enumerated().map{(index, step) in
-                        return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, start: step.start, end: index+1 == steps.steps.count ? nil : steps.steps[index+1].start ?? nil)
+                        return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
                         
                     }
                     steps.steps = newSteps
