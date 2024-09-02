@@ -75,7 +75,28 @@ public class TextToStructure {
                 let url = URL(filePath: grammar)
                 grammarString = try! String(contentsOf: url, encoding: .utf8)
             }
-            let result = try await apiLlama.generateSteps(subtitles: withClips ? prompt : noClipsInput, withDescription: grammarString.contains("step_name"), withClips: withClips)
+            var steps: StepsJSONWithClips
+            var result = try await apiLlama.generateSteps(subtitles: withClips ? prompt : noClipsInput, withDescription: grammarString.contains("step_name"), withClips: withClips)
+            if withClips {
+                let jsonstring = result.data(using: .utf8)
+                do {
+                    steps = try JSONDecoder().decode(StepsJSONWithClips.self, from: jsonstring!)
+                } catch {
+                    if await llamaState?.llamaContext?.isItForceStop == true {
+                        throw GenerationError.interrupt
+                    }
+                    throw LlamaError.couldNotInitializeContext
+                }
+                
+                let newSteps = steps.steps.enumerated().map{(index, step) in
+                    return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
+                    
+                }
+                steps.steps = newSteps
+                let stepsToJson = try JSONEncoder().encode(steps)
+                let stepsJsonString = String(data: stepsToJson, encoding: .utf8)
+                result = stepsJsonString ?? ""
+            }
             isGenerating = false
             guard !isRequestCanceled else {throw GenerationError.interrupt}
             return result

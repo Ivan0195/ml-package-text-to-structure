@@ -104,7 +104,7 @@ actor LlamaContext {
         }
         tokens.deallocate()
         
-        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.8 : Double(swiftTokens.count) * 1.5
+        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 3 : Double(swiftTokens.count) * 1.8
         
         guard swiftTokens.count > 10 else {
             print("Text is too short")
@@ -330,16 +330,16 @@ actor LlamaContext {
         modelAnswer += new_token_str
         var stepsArray = modelAnswer.components(separatedBy: "},")
         //стрим названия шагов
-        stream = stepsArray.enumerated().reduce("", {acc, str in
-            let endSkip = str.element.contains("step_short_description") ? ".\"" : "\","
-            let startSkip = str.element.contains("step_short_description") ? "\"step_short_description\"" : "\"step_name\""
-            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
-            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: ":", with: "") + "\n"
-        })
+//        stream = stepsArray.enumerated().reduce("", {acc, str in
+//            let endSkip = str.element.contains("step_short_description") ? ".\"" : "\","
+//            let startSkip = str.element.contains("step_short_description") ? "\"step_short_description\"" : "\"step_name\""
+//            let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
+//            return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: ":", with: "") + "\n"
+//        })
         //счетчик шагов
         //stream = String(stepsArray.count)
         // стрим исходного джейсона
-        //stream = modelAnswer
+        stream = modelAnswer
         if llama_decode(context, batch) != 0 {
             print("failed to evaluate llama!")
         }
