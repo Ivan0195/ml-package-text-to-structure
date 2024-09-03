@@ -100,7 +100,11 @@ public class TextToStructure {
             }
             isGenerating = false
             guard !isRequestCanceled else {throw GenerationError.interrupt}
-            return result
+            if !grammarString.contains("step_name") {
+                return result.replacingOccurrences(of: "step_short_description", with: "step_name")
+            } else {
+                return result
+            }
         } else {
             if streamResult == nil {
                 do {
@@ -147,7 +151,11 @@ public class TextToStructure {
                     let stepsJsonString = String(data: stepsToJson, encoding: .utf8)
                     result = stepsJsonString
                 }
-                return result ?? ""
+                if !grammarString.contains("step_name") {
+                    return result?.replacingOccurrences(of: "step_short_description", with: "step_name") ?? ""
+                } else {
+                    return result ?? ""
+                }
             }
             return try await self.generationTask!.value
         }
