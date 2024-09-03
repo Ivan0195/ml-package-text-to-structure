@@ -14,8 +14,9 @@ public struct StepsJSONWithClips: Codable {
 }
 
 public struct GeneratedStepWithClip: Codable {
-    public var step_name: String
+    public var step_name: String?
     public var step_description: String?
+    public var step_short_description: String?
     public var start: Int?
     public var end: Int?
 }
@@ -66,8 +67,8 @@ public class TextToStructure {
         })
         : prompt
         var finishTime = subsString[subsString.count - 1].slice(from: "start: ", to: "}")
-        print(noClipsInput)
-        print(prompt)
+//        print(noClipsInput)
+//        print(prompt)
         if useCloudModel {
             isRequestCanceled = false
             var grammarString: String = grammar
@@ -89,7 +90,7 @@ public class TextToStructure {
                 }
                 
                 let newSteps = steps.steps.enumerated().map{(index, step) in
-                    return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
+                    return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, step_short_description: step.step_short_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
                     
                 }
                 steps.steps = newSteps
@@ -138,7 +139,7 @@ public class TextToStructure {
                     }
                     
                     let newSteps = steps.steps.enumerated().map{(index, step) in
-                        return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
+                        return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, step_short_description: step.step_short_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
                         
                     }
                     steps.steps = newSteps
