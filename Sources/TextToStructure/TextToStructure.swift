@@ -66,7 +66,7 @@ public class TextToStructure {
             return acc + description + "  "
         })
         : prompt
-        var finishTime = subsString[subsString.count - 1].slice(from: "start: ", to: "}")
+        var finishTime = Int(subsString[subsString.count - 1].slice(from: "start: ", to: "}"))
 //        print(noClipsInput)
 //        print(prompt)
         if useCloudModel {
@@ -90,7 +90,7 @@ public class TextToStructure {
                 }
                 
                 let newSteps = steps.steps.enumerated().map{(index, step) in
-                    return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, step_short_description: step.step_short_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
+                    return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, step_short_description: step.step_short_description, start: step.start, end: index+1 == steps.steps.count ? finishTime ?? nil : steps.steps[index+1].start ?? nil)
                     
                 }
                 steps.steps = newSteps
@@ -126,7 +126,7 @@ public class TextToStructure {
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
                 var result = try await llamaState?.generateWithGrammar(
-                    prompt: withClips ? "[INST]skip introduction and conclusion, make steps for manual\(prompt)[/INST]" : "[INST]return list of instructions \(noClipsInput)[/INST]"
+                    prompt: withClips ? "[INST]skip introduction and conclusion, make steps for manual[/INST]\(prompt)" : "[INST]return list of instructions[/INST]\(noClipsInput)"
                     , grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil
@@ -143,7 +143,7 @@ public class TextToStructure {
                     }
                     
                     let newSteps = steps.steps.enumerated().map{(index, step) in
-                        return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, step_short_description: step.step_short_description, start: step.start, end: index+1 == steps.steps.count ? Int(finishTime!) ?? nil : steps.steps[index+1].start ?? nil)
+                        return GeneratedStepWithClip(step_name: step.step_name, step_description: step.step_description, step_short_description: step.step_short_description, start: step.start == 0 ? step.start : (step.start ?? 1) - 1, end: index+1 == steps.steps.count ? finishTime ?? nil : steps.steps[index+1].start ?? nil)
                         
                     }
                     steps.steps = newSteps
