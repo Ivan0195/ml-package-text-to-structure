@@ -36,6 +36,7 @@ public struct GeneratedStepWithoutDescription: Codable {
 }
 
 public class TextToStructure {
+    public var isAvailableOnDevice: Bool = false
     public var isGenerating: Bool = false
     private var modelPath: String
     private var llamaState: LlamaState? = nil
@@ -53,6 +54,10 @@ public class TextToStructure {
             return
         }
         self.streamResult = streamResult
+        if MTLCreateSystemDefaultDevice()!.name.contains("M") || MTLCreateSystemDefaultDevice()!.name.contains("A17 Pro") {
+            self.isAvailableOnDevice = true
+        }
+        
     }
     
     public func generateWithScheme(prompt: String, systemPrompt: String?, grammar: String, useCloudModel: Bool = false, withClips: Bool = false) async throws -> String {
