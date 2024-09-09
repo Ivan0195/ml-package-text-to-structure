@@ -44,6 +44,7 @@ public class TextToStructure {
     private var generationTask: Task<String, any Error>? = nil
     private var streamResult: Binding<String>? = nil
     private var isRequestCanceled: Bool = false
+    private var finishTime: Int?
     
     
     public init(modelPath: String = "", streamResult: Binding<String>? = nil) async throws {
@@ -71,7 +72,7 @@ public class TextToStructure {
             return acc + description + "  "
         })
         : prompt
-        var finishTime = Int(subsString[subsString.count - 1].slice(from: "start: ", to: "}"))
+        finishTime = Int(subsString[subsString.count - 1].slice(from: "start: ", to: "}"))
 //        print(noClipsInput)
 //        print(prompt)
         if useCloudModel {
