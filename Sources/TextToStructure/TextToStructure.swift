@@ -131,8 +131,9 @@ public class TextToStructure {
                     let url = URL(filePath: grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
+                let withoutDescription = grammarString.contains("step_short_description")
                 var result = try await llamaState?.generateWithGrammar(
-                    prompt: withClips ? "[INST]skip introduction and conclusion, make steps for manual[/INST]\(prompt)" : "[INST]return list of instructions[/INST]\(noClipsInput)"
+                    prompt: withClips ? (withoutDescription ? "[INST]return short list of instructions without introduction and conclusion but with start time for each step[/INST]\(prompt)" : "[INST]skip introduction and conclusion, make steps for manual[/INST]\(prompt)") : "[INST]return list of instructions[/INST]\(noClipsInput)"
                     , grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil
