@@ -133,7 +133,7 @@ public class TextToStructure {
                 }
                 let withoutDescription = grammarString.contains("step_short_description")
                 var result = try await llamaState?.generateWithGrammar(
-                    prompt: withClips ? (withoutDescription ? "[INST]return short list of instructions without introduction and conclusion but with start time for each step[/INST]\(prompt)" : "[INST]skip introduction and conclusion, make steps for manual[/INST]\(prompt)") : "[INST]return list of instructions[/INST]\(noClipsInput)"
+                    prompt: withClips ? (withoutDescription ? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]" : "[INST]skip introduction and conclusion, make steps for manual[/INST]\(prompt)") : "[INST]return list of instructions[/INST]\(noClipsInput)"
                     , grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil
@@ -180,7 +180,7 @@ public class TextToStructure {
             }
         } else {
             do {
-                let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(String(describing: extraKnowledge))</s>[INST]\(prompt)[/INST]"
+                let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer questions. Finish your answer with <end> tag.[/INST]</s>[INST]\(prompt)[/INST]"
                 if streamResult == nil {
                     do {
                         self.llamaState = try await LlamaState(modelUrl: modelPath, inputText: promptForGeneration)
@@ -195,7 +195,7 @@ public class TextToStructure {
                     }
                 }
                 self.generationTask = Task {
-                    let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information to answer questions. Finish your answer with <end> tag.[/INST]\(String(describing: extraKnowledge))</s>[INST]\(prompt)[/INST]"
+                    let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer questions. Finish your answer with <end> tag.[/INST]</s>[INST]\(prompt)[/INST]"
                     let result = try await llamaState?.generateRaw(prompt: promptForGeneration)
                     self.llamaState = nil
                     return result ?? "no result"
