@@ -174,13 +174,14 @@ public class TextToStructure {
             do {
                 let res = try await apiLlama.generateVocabularyAPI(prompt: prompt, extraInfo: extraKnowledge)
                 guard !isRequestCanceled else {throw GenerationError.interrupt}
-                return res.replacingOccurrences(of: "<end>", with: "")
+                return res.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "")
             } catch {
                 throw LlamaError.couldNotInitializeContext
             }
         } else {
             do {
-                let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer questions. Finish your answer with <end> tag.[/INST]</s>[INST]\(prompt)[/INST]"
+//                let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer questions. Finish your answer with <end> tag.[/INST]</s>[INST]\(prompt)[/INST]"
+                let promptForGeneration = "[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer question \(prompt). Finish your answer with <end> tag.[/INST]"
                 if streamResult == nil {
                     do {
                         self.llamaState = try await LlamaState(modelUrl: modelPath, inputText: promptForGeneration)
@@ -195,10 +196,10 @@ public class TextToStructure {
                     }
                 }
                 self.generationTask = Task {
-                    let promptForGeneration = "<s>[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer questions. Finish your answer with <end> tag.[/INST]</s>[INST]\(prompt)[/INST]"
+                    let promptForGeneration = "[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer question \(prompt). Finish your answer with <end> tag.[/INST]"
                     let result = try await llamaState?.generateRaw(prompt: promptForGeneration)
                     self.llamaState = nil
-                    return result ?? "no result"
+                    return result?.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "") ?? "no result"
                 }
                 return try await self.generationTask!.value
             } catch  {
