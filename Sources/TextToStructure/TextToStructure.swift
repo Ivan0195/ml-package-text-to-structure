@@ -74,7 +74,7 @@ public class TextToStructure {
         : prompt
         finishTime = Int(subsString[subsString.count - 1].slice(from: "start: ", to: "}"))
 //        print(noClipsInput)
-//        print(prompt)
+        print(prompt)
         if useCloudModel {
             isRequestCanceled = false
             var grammarString: String = grammar
@@ -132,9 +132,40 @@ public class TextToStructure {
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
                 let withoutDescription = grammarString.contains("step_short_description")
+                var requestPrompt: String
+                
+//                withClips
+//                    ? (
+//                        withoutDescription
+//                            //? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]"
+//                            ? "[INST]skip introduction and conclusion, make list of operations from provided information: \(prompt)[/INST]"
+//                            : "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>[INST]skip introduction and other unnecessary parts[/INST]"
+//                    )
+//                    : "[INST]return list of instructions \(noClipsInput)[/INST]"
+                
+                
+#if os(visionOS)
+                print("visionOS prompt")
+                requestPrompt = withClips
+                    ? (
+                        withoutDescription
+                            ? "[INST]skip introduction and conclusion, generate list of operations from provided information: \(prompt)[/INST]"
+                            : "[INST]gemerate manual from provided information: \(prompt)[/INST]"
+                    )
+                    : "[INST]return list of operations \(noClipsInput)[/INST]"
+#else
+                requestPrompt = withClips
+                    ? (
+                        withoutDescription
+                            //? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]"
+                            ? "[INST]skip introduction and conclusion, make list of operations from provided information: \(prompt)[/INST]"
+                            : "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>[INST]skip introduction and other unnecessary parts[/INST]"
+                    )
+                    : "[INST]return list of operations \(noClipsInput)[/INST]"
+#endif
                 var result = try await llamaState?.generateWithGrammar(
-                    prompt: withClips ? (withoutDescription ? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]" : "[INST]skip introduction and conclusion, make steps for manual: \(prompt)[/INST]\(prompt)") : "[INST]return list of instructions[/INST]\(noClipsInput)"
-                    , grammar: LlamaGrammar(grammarString)!)
+                    prompt: requestPrompt,
+                    grammar: LlamaGrammar(grammarString)!)
                 isGenerating = false
                 self.llamaState = nil
                 var steps: StepsJSONWithClips
