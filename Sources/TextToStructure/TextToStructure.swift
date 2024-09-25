@@ -158,10 +158,10 @@ public class TextToStructure {
                     ? (
                         withoutDescription
                             //? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]"
-                            ? "[INST]skip introduction and conclusion, make list of operations from provided information: \(prompt)[/INST]"
-                            : "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>[INST]skip introduction and other unnecessary parts[/INST]"
+                            ? "[INST]skip introduction and conclusion, make list of operations \(prompt)[/INST]"
+                            : "INST]skip introduction and conclusion, make steps for manual \(prompt)[/INST]"
                     )
-                    : "[INST]return list of operations \(noClipsInput)[/INST]"
+                    : "[INST]return list of instructions \(noClipsInput)[/INST]"
 #endif
                 var result = try await llamaState?.generateWithGrammar(
                     prompt: requestPrompt,
