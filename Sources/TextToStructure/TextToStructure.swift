@@ -69,12 +69,12 @@ public class TextToStructure {
             let endSkip = ", start:"
             let startSkip = "{sentence: "
             let description = str.slice(from: startSkip, to: endSkip) ?? ""
-            return acc + description + "  "
+            return acc + description
         })
         : prompt
         finishTime = Int(subsString[subsString.count - 1].slice(from: "start: ", to: "}"))
 //        print(noClipsInput)
-        print(prompt)
+//        print(prompt)
         if useCloudModel {
             isRequestCanceled = false
             var grammarString: String = grammar
@@ -158,10 +158,11 @@ public class TextToStructure {
                     ? (
                         withoutDescription
                             //? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]"
-                            ? "[INST]skip introduction and conclusion, make list of operations \(prompt)[/INST]"
+                            //? "[INST]skip introduction and conclusion, make list of operations \(prompt)[/INST]"
+                            ? "[INST]make manual from given information\n\(prompt)[/INST]"
                             : "[INST]make manual from given information\n\(prompt)[/INST]"
                     )
-                    : "[INST]return list of instructions \(noClipsInput)[/INST]"
+                    : "[INST]make manual from given information\n\(noClipsInput)[/INST]"
 #endif
                 var result = try await llamaState?.generateWithGrammar(
                     prompt: requestPrompt,

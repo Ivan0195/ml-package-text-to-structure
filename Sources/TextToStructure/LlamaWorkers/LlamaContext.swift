@@ -331,9 +331,10 @@ actor LlamaContext {
         var stepsArray = modelAnswer.components(separatedBy: "},")
         //стрим названия шагов
         stream = stepsArray.enumerated().reduce("", {acc, str in
-            let endSkip = str.element.contains("step_short_description") ? ".\"" : "\","
+            let endSkip = str.element.contains("step_short_description") ? str.element.contains("start") ? "\"," : ".\"" : "\","
             let startSkip = str.element.contains("step_short_description") ? "\"step_short_description\"" : "\"step_name\""
             let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
+            
             return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: ":", with: "") + "\n"
         })
         //счетчик шагов
