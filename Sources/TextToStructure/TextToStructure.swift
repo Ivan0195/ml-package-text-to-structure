@@ -159,7 +159,7 @@ public class TextToStructure {
                         withoutDescription
                             //? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]"
                             ? "[INST]skip introduction and conclusion, make list of operations \(prompt)[/INST]"
-                            : "INST]skip introduction and conclusion, make steps for manual \(prompt)[/INST]"
+                            : "[INST]make manual from given information\n\(prompt)[/INST]"
                     )
                     : "[INST]return list of instructions \(noClipsInput)[/INST]"
 #endif
