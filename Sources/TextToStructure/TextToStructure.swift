@@ -4,6 +4,18 @@ import SwiftUI
 import LlamaHelpers
 import Combine
 
+extension String {
+    var condensedWhitespace: String {
+        let components = self.components(separatedBy: NSCharacterSet.whitespacesAndNewlines)
+        return components.filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    func removeSpecialCharacters() -> String {
+        let okayChars = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLKMNOPQRSTUVWXYZ1234567890 ")
+        return String(self.unicodeScalars.filter { okayChars.contains($0) || $0.properties.isEmoji })
+    }
+}
+
 @available(iOS 13.0.0, *)
 public struct StepsJSON: Codable {
     public var steps: [GeneratedStep]
@@ -206,7 +218,7 @@ public class TextToStructure {
             do {
                 let res = try await apiLlama.generateVocabularyAPI(prompt: prompt, extraInfo: extraKnowledge)
                 guard !isRequestCanceled else {throw GenerationError.interrupt}
-                return res.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "")
+                return res.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "").removeSpecialCharacters().condensedWhitespace
             } catch {
                 throw LlamaError.couldNotInitializeContext
             }
@@ -231,7 +243,7 @@ public class TextToStructure {
                     let promptForGeneration = "[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer question \(prompt). Finish your answer with <end> tag.[/INST]"
                     let result = try await llamaState?.generateRaw(prompt: promptForGeneration)
                     self.llamaState = nil
-                    return result?.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "") ?? "no result"
+                    return result?.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "").removeSpecialCharacters().condensedWhitespace ?? "no result"
                 }
                 return try await self.generationTask!.value
             } catch  {
