@@ -162,19 +162,19 @@ public class TextToStructure {
                     ? (
                         withoutDescription
                             ? "[INST]skip introduction and conclusion, generate list of operations from provided information: \(prompt)[/INST]"
-                            : "[INST]gemerate manual from provided information: \(prompt)[/INST]"
+                            : "[INST]generate manual from provided information: \(prompt)[/INST]"
                     )
                     : "[INST]return list of operations \(noClipsInput)[/INST]"
 #else
                 requestPrompt = withClips
                     ? (
                         withoutDescription
-                            //? "[INST]return short list of instructions without introduction and conclusion: \(prompt)[/INST]"
-                            //? "[INST]skip introduction and conclusion, make list of operations \(prompt)[/INST]"
-                            ? "[INST]make manual from given information\n\(prompt)[/INST]"
-                            : "[INST]make manual from given information\n\(prompt)[/INST]"
+                            ? "[INST]skip introduction and conclusion, return list of instructions \(prompt)[/INST]"
+                            : "[INST]skip introduction and conclusion, make list of instructions \(prompt)[/INST]"
+//                            ? "[INST]make manual from given information\n\(prompt)[/INST]"
+//                            : "[INST]make manual from given information\n\(prompt)[/INST]"
                     )
-                    : "[INST]make manual from given information\n\(noClipsInput)[/INST]"
+                    : "[INST]return list of instructions \(noClipsInput)[/INST]"
 #endif
                 var result = try await llamaState?.generateWithGrammar(
                     prompt: requestPrompt,
@@ -218,7 +218,7 @@ public class TextToStructure {
             do {
                 let res = try await apiLlama.generateVocabularyAPI(prompt: prompt, extraInfo: extraKnowledge)
                 guard !isRequestCanceled else {throw GenerationError.interrupt}
-                return res.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "").removeSpecialCharacters().condensedWhitespace
+                return res.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "")
             } catch {
                 throw LlamaError.couldNotInitializeContext
             }
@@ -243,7 +243,7 @@ public class TextToStructure {
                     let promptForGeneration = "[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(String(describing: extraKnowledge)) to answer question \(prompt). Finish your answer with <end> tag.[/INST]"
                     let result = try await llamaState?.generateRaw(prompt: promptForGeneration)
                     self.llamaState = nil
-                    return result?.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "").removeSpecialCharacters().condensedWhitespace ?? "no result"
+                    return result?.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "") ?? "no result"
                 }
                 return try await self.generationTask!.value
             } catch  {
