@@ -83,7 +83,11 @@ actor LlamaContext {
                     model_params.n_gpu_layers = 24
                 }
             } else {
-                model_params.n_gpu_layers = 20
+                if ProcessInfo().physicalMemory < 4598691840 {
+                    model_params.n_gpu_layers = 10
+                } else {
+                    model_params.n_gpu_layers = 20
+                }
             }
         }
         let model = llama_load_model_from_file(modelPath, model_params)
