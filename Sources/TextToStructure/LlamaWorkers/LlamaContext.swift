@@ -36,14 +36,14 @@ enum LlamaError: LocalizedError {
 }
 
 extension String {
-
-    func slice(from: String, to: String) -> String? {
-
+    
+    func slice(from: String, to: String) -> String {
+        
         return (range(of: from)?.upperBound).flatMap { substringFrom in
             (range(of: to, range: substringFrom..<endIndex)?.lowerBound).map { substringTo in
                 String(self[substringFrom..<substringTo])
             }
-        }
+        } ?? ""
     }
 }
 
@@ -83,7 +83,11 @@ actor LlamaContext {
                     model_params.n_gpu_layers = 24
                 }
             } else {
-                model_params.n_gpu_layers = 20
+                if ProcessInfo().physicalMemory < 4598691840 {
+                    model_params.n_gpu_layers = 10
+                } else {
+                    model_params.n_gpu_layers = 20
+                }
             }
         }
         let model = llama_load_model_from_file(modelPath, model_params)
@@ -104,7 +108,7 @@ actor LlamaContext {
         }
         tokens.deallocate()
         
-        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 2.5 : Double(swiftTokens.count) * 1.35
+        let maxInputLength = Double(swiftTokens.count) < 500 ? 2048 : Double(swiftTokens.count) < 2048 ? Double(swiftTokens.count) * 3 : Double(swiftTokens.count) * 1.8
         
         guard swiftTokens.count > 10 else {
             print("Text is too short")
@@ -178,7 +182,6 @@ actor LlamaContext {
         tokens_list = tokenize(text: text, add_bos: true)
         temporary_invalid_cchars = []
         llama_batch_clear(&batch)
-        
         for i1 in 0..<tokens_list.count where !isItForceStop {
             let i = Int(i1)
             llama_batch_add(&batch, tokens_list[i], Int32(i), [0], false)
@@ -209,67 +212,67 @@ actor LlamaContext {
     }
     
     func completion_loop() -> CompletionStatus {
-            var new_token_id: llama_token = 0
-            
-            let n_vocab = llama_n_vocab(model)
-            let logits = llama_get_logits_ith(context, batch.n_tokens - 1)
-            
-            var candidates = Array<llama_token_data>()
-            candidates.reserveCapacity(Int(n_vocab))
-            
-            for token_id in 0..<n_vocab {
-                candidates.append(llama_token_data(id: token_id, logit: logits![Int(token_id)], p: 0.0))
-            }
-            candidates.withUnsafeMutableBufferPointer() { buffer in
-                var candidates_p = llama_token_data_array(data: buffer.baseAddress, size: buffer.count, sorted: false)
-                llama_sample_top_k(context, &candidates_p, 40, 2)
-                llama_sample_top_p(context, &candidates_p, 0.95, 2)
-                llama_sample_min_p(context, &candidates_p, 0.05, 2)
-                llama_sample_temp(context, &candidates_p, 0.8)
-                new_token_id = llama_sample_token(context, &candidates_p)
-            }
-            
-            if new_token_id == llama_token_eos(context) {
-                let new_token_str = String(cString: temporary_invalid_cchars + [0])
-                temporary_invalid_cchars.removeAll()
-                return CompletionStatus(piece: new_token_str, state: .eos)
-            } else if n_cur >= n_len || empty_strings >= 5 {
-                let new_token_str = String(cString: temporary_invalid_cchars + [0])
-                temporary_invalid_cchars.removeAll()
-                return CompletionStatus(piece: new_token_str, state: .maxlength)
-            }
-            
-            let new_token_cchars = token_to_piece(token: new_token_id)
-            temporary_invalid_cchars.append(contentsOf: new_token_cchars)
-            let new_token_str: String
-            if let string = String(validatingUTF8: temporary_invalid_cchars + [0]) {
-                temporary_invalid_cchars.removeAll()
-                new_token_str = string
-            } else if (0 ..< temporary_invalid_cchars.count).contains(where: {$0 != 0 && String(validatingUTF8: Array(temporary_invalid_cchars.suffix($0)) + [0]) != nil}) {
-                let string = String(cString: temporary_invalid_cchars + [0])
-                temporary_invalid_cchars.removeAll()
-                new_token_str = string
-            } else {
-                new_token_str = ""
-            }
-            if new_token_str == "" {
-                empty_strings = empty_strings + 1
-            }
-            if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" {
-                empty_strings = 5
-            }
-            llama_batch_clear(&batch)
-            llama_batch_add(&batch, new_token_id, n_cur, [0], true)
-            n_decode += 1
-            n_cur += 1
-            modelAnswer += new_token_str
-            if llama_decode(context, batch) != 0 {
-                print("failed to evaluate llama!")
-            }
-            stream = modelAnswer
-            
-            return CompletionStatus(piece: new_token_str, state: .normal)
+        var new_token_id: llama_token = 0
+        
+        let n_vocab = llama_n_vocab(model)
+        let logits = llama_get_logits_ith(context, batch.n_tokens - 1)
+        
+        var candidates = Array<llama_token_data>()
+        candidates.reserveCapacity(Int(n_vocab))
+        
+        for token_id in 0..<n_vocab {
+            candidates.append(llama_token_data(id: token_id, logit: logits![Int(token_id)], p: 0.0))
         }
+        candidates.withUnsafeMutableBufferPointer() { buffer in
+            var candidates_p = llama_token_data_array(data: buffer.baseAddress, size: buffer.count, sorted: false)
+            llama_sample_top_k(context, &candidates_p, 40, 2)
+            llama_sample_top_p(context, &candidates_p, 0.95, 2)
+            llama_sample_min_p(context, &candidates_p, 0.05, 2)
+            llama_sample_temp(context, &candidates_p, 0.8)
+            new_token_id = llama_sample_token(context, &candidates_p)
+        }
+        
+        if new_token_id == llama_token_eos(context) {
+            let new_token_str = String(cString: temporary_invalid_cchars + [0])
+            temporary_invalid_cchars.removeAll()
+            return CompletionStatus(piece: new_token_str, state: .eos)
+        } else if n_cur >= n_len || empty_strings >= 5 {
+            let new_token_str = String(cString: temporary_invalid_cchars + [0])
+            temporary_invalid_cchars.removeAll()
+            return CompletionStatus(piece: new_token_str, state: .maxlength)
+        }
+        
+        let new_token_cchars = token_to_piece(token: new_token_id)
+        temporary_invalid_cchars.append(contentsOf: new_token_cchars)
+        let new_token_str: String
+        if let string = String(validatingUTF8: temporary_invalid_cchars + [0]) {
+            temporary_invalid_cchars.removeAll()
+            new_token_str = string
+        } else if (0 ..< temporary_invalid_cchars.count).contains(where: {$0 != 0 && String(validatingUTF8: Array(temporary_invalid_cchars.suffix($0)) + [0]) != nil}) {
+            let string = String(cString: temporary_invalid_cchars + [0])
+            temporary_invalid_cchars.removeAll()
+            new_token_str = string
+        } else {
+            new_token_str = ""
+        }
+        if new_token_str == "" {
+            empty_strings = empty_strings + 1
+        }
+        if new_token_str == "<|endoftext|>" || new_token_str == "<|im_end|>" || new_token_str == "<|end|>" || new_token_str == "</s>" || new_token_str == "</end>" {
+            empty_strings = 5
+        }
+        llama_batch_clear(&batch)
+        llama_batch_add(&batch, new_token_id, n_cur, [0], true)
+        n_decode += 1
+        n_cur += 1
+        modelAnswer += new_token_str
+        if llama_decode(context, batch) != 0 {
+            print("failed to evaluate llama!")
+        }
+        stream = modelAnswer
+        
+        return CompletionStatus(piece: new_token_str, state: .normal)
+    }
     
     func completion_loop_with_grammar(grammar: LlamaGrammar) -> CompletionStatus {
         var new_token_id: llama_token = 0
@@ -292,6 +295,7 @@ actor LlamaContext {
             llama_sample_temp(context, &candidates_p, 0.8)
             new_token_id = llama_sample_token(context, &candidates_p)
             llama_grammar_accept_token(grammar.grammar, context, new_token_id);
+            
         }
         
         if new_token_id == llama_token_eos(context) {
@@ -331,9 +335,10 @@ actor LlamaContext {
         var stepsArray = modelAnswer.components(separatedBy: "},")
         //стрим названия шагов
         stream = stepsArray.enumerated().reduce("", {acc, str in
-            let endSkip = str.element.contains("step_short_description") ? "\"}" : "\","
+            let endSkip = str.element.contains("step_short_description") ? str.element.contains("start") ? "\"," : ".\"" : "\","
             let startSkip = str.element.contains("step_short_description") ? "\"step_short_description\"" : "\"step_name\""
             let description = str.element.slice(from: startSkip, to: endSkip) ?? ""
+            
             return acc + (description.contains("Step") ? ""  : "Step \(str.offset + 1): ") + description.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: ":", with: "") + "\n"
         })
         //счетчик шагов
@@ -384,27 +389,26 @@ actor LlamaContext {
         return swiftTokens
     }
     
-    /// - note: The result does not contain null-terminator
     private func token_to_piece(token: llama_token) -> [CChar] {
-            let result = UnsafeMutablePointer<Int8>.allocate(capacity: 8)
-            result.initialize(repeating: Int8(0), count: 8)
-            defer {
-                result.deallocate()
-            }
-            let nTokens = llama_token_to_piece(model, token, result, 8, 0, false)
-
-            if nTokens < 0 {
-                let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
-                newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
-                defer {
-                    newResult.deallocate()
-                }
-                let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens, 0, false)
-                let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
-                return Array(bufferPointer)
-            } else {
-                let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
-                return Array(bufferPointer)
-            }
+        let result = UnsafeMutablePointer<Int8>.allocate(capacity: 8)
+        result.initialize(repeating: Int8(0), count: 8)
+        defer {
+            result.deallocate()
         }
+        let nTokens = llama_token_to_piece(model, token, result, 8, 0, false)
+        
+        if nTokens < 0 {
+            let newResult = UnsafeMutablePointer<Int8>.allocate(capacity: Int(-nTokens))
+            newResult.initialize(repeating: Int8(0), count: Int(-nTokens))
+            defer {
+                newResult.deallocate()
+            }
+            let nNewTokens = llama_token_to_piece(model, token, newResult, -nTokens, 0, false)
+            let bufferPointer = UnsafeBufferPointer(start: newResult, count: Int(nNewTokens))
+            return Array(bufferPointer)
+        } else {
+            let bufferPointer = UnsafeBufferPointer(start: result, count: Int(nTokens))
+            return Array(bufferPointer)
+        }
+    }
 }

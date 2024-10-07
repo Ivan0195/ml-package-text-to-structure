@@ -10,7 +10,7 @@ enum GenerationError: Error {
 }
 
 
-@MainActor
+
 class LlamaState: ObservableObject {
     
     private var generationTask: Task<Void, any Error>?
@@ -59,7 +59,7 @@ class LlamaState: ObservableObject {
             while !Task.isCancelled {
                 let completion = await llamaContext.completion_loop()
                 result.append(contentsOf: completion.piece)
-                if result.contains("<end>") {
+                if result.contains("<end>") || result.contains("</end>") {
                     break
                 }
                 if completion.state != .normal {
@@ -70,5 +70,7 @@ class LlamaState: ObservableObject {
                 await llamaContext.clear()
             }
             return result
+                .replacingOccurrences(of: "<end>", with: "")
+                .replacingOccurrences(of: "</end>", with: "")
         }
 }
