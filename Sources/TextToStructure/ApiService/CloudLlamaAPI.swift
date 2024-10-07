@@ -23,11 +23,13 @@ struct APIResponse: Codable {
 class CloudLlamaAPIService {
     
     func generateVocabularyAPI(prompt: String, extraInfo: String) async throws -> String {
-        let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/mistral/manifestMaker/generateVocabulary")!
+        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateVocabulary")!
+        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateVocabulary")!
         var request = URLRequest(url: url)
         let json: [String: String] = ["prompt": prompt, "extraInfo": extraInfo]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
         print("JSONBODY:     ",jsonData)
+        request.timeoutInterval = 600
         request.httpMethod = "POST"
         request.httpBody = jsonData
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -47,10 +49,12 @@ class CloudLlamaAPIService {
     }
     
     func generateSteps(subtitles: String, withDescription: Bool, withClips: Bool = false) async throws -> String {
-        let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/mistral/manifestMaker/generateSteps")!
+        //let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/mistral/manifestMaker/generateSteps")!
+        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateSteps")!
         var request = URLRequest(url: url)
         let json: [String: Any] = ["subtitles": subtitles, "withDescription": withDescription, "withClips": withClips]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
+        request.timeoutInterval = 600
         request.httpMethod = "POST"
         request.httpBody = jsonData
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
