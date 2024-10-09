@@ -75,6 +75,7 @@ class CloudLlamaAPIService {
             throw LlamaError.couldNotInitializeContext
         }
         let answer = try? JSONDecoder().decode(LlamaResponse.self, from: data)
-        return answer?.content ?? "new string"
+        print(answer?.content.replacingOccurrences(of: "\n", with: ""))
+        return answer?.content.replacingOccurrences(of: "\n", with: "") ?? "new string"
     }
 }
