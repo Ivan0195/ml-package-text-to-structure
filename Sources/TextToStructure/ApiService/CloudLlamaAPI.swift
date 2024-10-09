@@ -20,13 +20,17 @@ struct APIResponse: Codable {
     let response: String
 }
 
+struct LlamaResponse: Codable {
+    let content: String
+}
+
 class CloudLlamaAPIService {
     
-    func generateVocabularyAPI(prompt: String, extraInfo: String) async throws -> String {
+    func generateVocabularyAPI(prompt: String) async throws -> String {
         //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateVocabulary")!
-        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateVocabulary")!
+        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
         var request = URLRequest(url: url)
-        let json: [String: String] = ["prompt": prompt, "extraInfo": extraInfo]
+        let json: [String: String] = ["prompt": prompt]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
         print("JSONBODY:     ",jsonData)
         request.timeoutInterval = 600
@@ -44,15 +48,16 @@ class CloudLlamaAPIService {
             }
             throw LlamaError.couldNotInitializeContext
         }
-        let answer = String(decoding: data, as: UTF8.self)
-        return answer ?? "new string"
+        let answer = try? JSONDecoder().decode(LlamaResponse.self, from: data)
+        return answer?.content ?? "new string"
     }
     
-    func generateSteps(subtitles: String, withDescription: Bool, withClips: Bool = false) async throws -> String {
+    func generateSteps(prompt: String, grammar: String) async throws -> String {
         //let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/mistral/manifestMaker/generateSteps")!
-        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateSteps")!
+        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateSteps")!
+        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
         var request = URLRequest(url: url)
-        let json: [String: Any] = ["subtitles": subtitles, "withDescription": withDescription, "withClips": withClips]
+        let json: [String: Any] = ["prompt": prompt, "grammar": grammar]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
         request.timeoutInterval = 600
         request.httpMethod = "POST"
@@ -69,7 +74,7 @@ class CloudLlamaAPIService {
             }
             throw LlamaError.couldNotInitializeContext
         }
-        let answer = String(decoding: data, as: UTF8.self)
-        return answer ?? "new string"
+        let answer = try? JSONDecoder().decode(LlamaResponse.self, from: data)
+        return answer?.content ?? "new string"
     }
 }

@@ -94,8 +94,16 @@ public class TextToStructure {
                 let url = URL(filePath: grammar)
                 grammarString = try! String(contentsOf: url, encoding: .utf8)
             }
+            let withDescription = !grammarString.contains("step_short_description")
             var steps: StepsJSONWithClips
-            var result = try await apiLlama.generateSteps(subtitles: withClips ? prompt : noClipsInput, withDescription: grammarString.contains("step_name"), withClips: withClips)
+            let apiLlamaPrompt =  withClips
+            ? withDescription
+            ? "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>[INST]skip introduction and other unnecessary parts[/INST]"
+              : "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>\n[INST]skip introduction and other unnecessary parts[/INST]"
+            : withDescription
+            ? "[INST]generate manual from provided information: \(noClipsInput)[/INST]"
+              : "[INST]generate manual from provided information: \(noClipsInput)}[/INST]";
+            var result = try await apiLlama.generateSteps(prompt: apiLlamaPrompt, grammar: grammarString)
             if withClips {
                 let jsonstring = result.data(using: .utf8)
                 do {
@@ -216,9 +224,10 @@ public class TextToStructure {
         if useCloudModel {
             isRequestCanceled = false
             do {
-                let res = try await apiLlama.generateVocabularyAPI(prompt: prompt, extraInfo: extraKnowledge)
+                let apiPrompt = "[INST]You are AI assistant, your name is Taqi. Answer questions. Use this helpful information \(extraKnowledge) to answer question \(prompt). Finish your answer with <end> tag.[/INST]"
+                let res = try await apiLlama.generateVocabularyAPI(prompt: apiPrompt)
                 guard !isRequestCanceled else {throw GenerationError.interrupt}
-                return res.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "")
+                return res.replacingOccurrences(of: "<end>", with: "").replacingOccurrences(of: "</end>", with: "").replacingOccurrences(of: "<s>", with: "").replacingOccurrences(of: "</s>", with: "")
             } catch {
                 throw LlamaError.couldNotInitializeContext
             }
