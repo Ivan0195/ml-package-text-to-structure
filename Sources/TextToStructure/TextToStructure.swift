@@ -85,12 +85,10 @@ public class TextToStructure {
         })
         : prompt
         finishTime = Int(subsString[subsString.count - 1].slice(from: "start: ", to: "}"))
-//        print(noClipsInput)
-//        print(prompt)
         if useCloudModel {
             isRequestCanceled = false
             var grammarString: String = grammar
-            if grammar.contains("containers/Bundle/Application") {
+            if grammar.contains("Bundle/Application") {
                 let url = URL(filePath: grammar)
                 grammarString = try! String(contentsOf: url, encoding: .utf8)
             }
@@ -101,8 +99,10 @@ public class TextToStructure {
             ? "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>[INST]skip introduction and other unnecessary parts[/INST]"
               : "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>\n[INST]skip introduction and other unnecessary parts[/INST]"
             : withDescription
-            ? "[INST]generate manual from provided information: \(noClipsInput)[/INST]"
-              : "[INST]generate manual from provided information: \(noClipsInput)}[/INST]";
+            ? "[INST]generate manual\(systemPrompt != "" ? " on \(systemPrompt)" : "") from provided information: \(noClipsInput)[/INST]"
+            //? "[INST]generate manual from provided information: \(noClipsInput)[/INST]"
+              : "[INST]generate manual\(systemPrompt != "" ? " on \(systemPrompt)" : "") from provided information: \(noClipsInput)}[/INST]";
+             // : "[INST]generate manual from provided information: \(noClipsInput)}[/INST]";
             var result = try await apiLlama.generateSteps(prompt: apiLlamaPrompt, grammar: grammarString)
             if withClips {
                 let jsonstring = result.data(using: .utf8)
@@ -147,7 +147,7 @@ public class TextToStructure {
             }
             self.generationTask = Task {
                 var grammarString: String = grammar
-                if grammar.contains("containers/Bundle/Application") {
+                if grammar.contains("Bundle/Application") {
                     let url = URL(filePath: grammar)
                     grammarString = try! String(contentsOf: url, encoding: .utf8)
                 }
@@ -172,7 +172,7 @@ public class TextToStructure {
                             ? "[INST]skip introduction and conclusion, generate list of operations from provided information: \(prompt)[/INST]"
                             : "[INST]generate manual from provided information: \(prompt)[/INST]"
                     )
-                    : "[INST]return list of operations \(noClipsInput)[/INST]"
+                    : "[INST]return list of operations\(systemPrompt != "" ? " on \(systemPrompt)" : "") \(noClipsInput)[/INST]"
 #else
                 requestPrompt = withClips
                     ? (
@@ -182,7 +182,8 @@ public class TextToStructure {
 //                            ? "[INST]make manual from given information\n\(prompt)[/INST]"
 //                            : "[INST]make manual from given information\n\(prompt)[/INST]"
                     )
-                    : "[INST]return list of instructions \(noClipsInput)[/INST]"
+                    : "[INST]return list of instructions\(systemPrompt != "" ? " on \"\(systemPrompt)\" from provided information:" : "") \(noClipsInput)[/INST]"
+                    //: "[INST]return list of instructions \(noClipsInput)[/INST]"
 #endif
                 var result = try await llamaState?.generateWithGrammar(
                     prompt: requestPrompt,
