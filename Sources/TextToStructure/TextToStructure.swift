@@ -94,15 +94,18 @@ public class TextToStructure {
             }
             let withDescription = !grammarString.contains("step_short_description")
             var steps: StepsJSONWithClips
-            let apiLlamaPrompt =  withClips
+            var apiLlamaPrompt =  withClips
             ? withDescription
             ? "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>[INST]skip introduction and other unnecessary parts[/INST]"
-              : "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>\n[INST]skip introduction and other unnecessary parts[/INST]"
-            : withDescription
-            ? "[INST]generate manual\(systemPrompt != "" ? " on \(systemPrompt)" : "") from provided information: \(noClipsInput)[/INST]"
-            //? "[INST]generate manual from provided information: \(noClipsInput)[/INST]"
-              : "[INST]generate manual\(systemPrompt != "" ? " on \(systemPrompt)" : "") from provided information: \(noClipsInput)}[/INST]";
-             // : "[INST]generate manual from provided information: \(noClipsInput)}[/INST]";
+            : "<s>[INST]make manual from provided information: \(prompt)[/INST]</s>\n[INST]skip introduction and other unnecessary parts[/INST]"
+            //: "[INST]generate manual\(systemPrompt != "" ? " on \"\(systemPrompt!)\"" : "") from provided information: \(noClipsInput)}[/INST]";
+             : "[INST]generate manual from provided information: \(noClipsInput)}[/INST]";
+            
+            //[INST]return list of instructions\(systemPrompt != "" ? " on \"\(systemPrompt!)\" from provided information:" : "") \(noClipsInput)[/INST]
+            if systemPrompt != nil && systemPrompt != "" {
+                apiLlamaPrompt = "[INST]return list of instructions on \"\(systemPrompt!)\" from provided information: \(noClipsInput)[/INST]"
+            }
+            
             var result = try await apiLlama.generateSteps(prompt: apiLlamaPrompt, grammar: grammarString)
             if withClips {
                 let jsonstring = result.data(using: .utf8)
@@ -172,7 +175,10 @@ public class TextToStructure {
                             ? "[INST]skip introduction and conclusion, generate list of operations from provided information: \(prompt)[/INST]"
                             : "[INST]generate manual from provided information: \(prompt)[/INST]"
                     )
-                    : "[INST]return list of operations\(systemPrompt != "" ? " on \(systemPrompt)" : "") \(noClipsInput)[/INST]"
+                    : "[INST]return list of operations \(noClipsInput)[/INST]"
+                if systemPrompt != nil && systemPrompt != "" {
+                    requestPrompt = "[INST]return list of instructions on \"\(systemPrompt!)\" from provided information: \(noClipsInput)[/INST]"
+                }
 #else
                 requestPrompt = withClips
                     ? (
@@ -182,8 +188,11 @@ public class TextToStructure {
 //                            ? "[INST]make manual from given information\n\(prompt)[/INST]"
 //                            : "[INST]make manual from given information\n\(prompt)[/INST]"
                     )
-                    : "[INST]return list of instructions\(systemPrompt != "" ? " on \"\(systemPrompt)\" from provided information:" : "") \(noClipsInput)[/INST]"
+                    : "[INST]return list of instructions \(noClipsInput)[/INST]"
                     //: "[INST]return list of instructions \(noClipsInput)[/INST]"
+                if systemPrompt != nil && systemPrompt != "" {
+                    requestPrompt = "[INST]return list of instructions on \"\(systemPrompt!)\" from provided information: \(noClipsInput)[/INST]"
+                }
 #endif
                 var result = try await llamaState?.generateWithGrammar(
                     prompt: requestPrompt,
