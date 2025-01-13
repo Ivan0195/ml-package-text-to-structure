@@ -28,7 +28,8 @@ class CloudLlamaAPIService {
     
     func generateVocabularyAPI(prompt: String) async throws -> String {
         //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateVocabulary")!
-        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
+        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
+        let url = URL(string: "https://ai.5scontrol.com/maker-ai-server/completion")!
         var request = URLRequest(url: url)
         let json: [String: String] = ["prompt": prompt]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
@@ -58,7 +59,8 @@ class CloudLlamaAPIService {
 #if DEBUG
         let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/makerDocker/completion")!
 #else
-        let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
+        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
+        let url = URL(string: "https://ai.5scontrol.com/maker-ai-server/completion")!
         #endif
         //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
         var request = URLRequest(url: url)
