@@ -27,8 +27,6 @@ struct LlamaResponse: Codable {
 class CloudLlamaAPIService {
     
     func generateVocabularyAPI(prompt: String) async throws -> String {
-        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateVocabulary")!
-        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
         let url = URL(string: "https://ai.5scontrol.com/maker-ai-server/completion")!
         var request = URLRequest(url: url)
         let json: [String: String] = ["prompt": prompt]
@@ -54,15 +52,7 @@ class CloudLlamaAPIService {
     }
     
     func generateSteps(prompt: String, grammar: String) async throws -> String {
-        //let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/mistral/manifestMaker/generateSteps")!
-        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/manifestMaker/generateSteps")!
-#if DEBUG
-        let url = URL(string: "https://pleasant-bluejay-next.ngrok-free.app/makerDocker/completion")!
-#else
-        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
         let url = URL(string: "https://ai.5scontrol.com/maker-ai-server/completion")!
-        #endif
-        //let url = URL(string: "https://crucial-heron-vastly.ngrok-free.app/maker-ai-server/completion")!
         var request = URLRequest(url: url)
         let json: [String: Any] = ["prompt": prompt, "grammar": grammar]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
