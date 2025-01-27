@@ -27,7 +27,7 @@ struct LlamaResponse: Codable {
 class CloudLlamaAPIService {
     
     func generateVocabularyAPI(prompt: String) async throws -> String {
-        let url = URL(string: "https://ai.5scontrol.com/maker-ai-server/completion")!
+        let url = URL(string: "https://ai.5scontrol.com/maker-ai-server-2/completion")!
         var request = URLRequest(url: url)
         let json: [String: String] = ["prompt": prompt]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
@@ -52,7 +52,7 @@ class CloudLlamaAPIService {
     }
     
     func generateSteps(prompt: String, grammar: String) async throws -> String {
-        let url = URL(string: "https://ai.5scontrol.com/maker-ai-server/completion")!
+        let url = URL(string: "https://ai.5scontrol.com/maker-ai-server-2/completion")!
         var request = URLRequest(url: url)
         let json: [String: Any] = ["prompt": prompt, "grammar": grammar]
         let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
